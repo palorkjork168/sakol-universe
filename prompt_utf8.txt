@@ -1,0 +1,1910 @@
+﻿<USER_REQUEST>
+Continue development of Sakol Universe.
+
+CURRENT VERIFIED STATE:
+
+The following milestones are COMPLETE and verified:
+
+- Authentication
+- JWT
+- RBAC + multi-role support
+- Company Management
+- Job Management
+- Job Search / Filtering
+- Job Skills
+- Applications
+- Applicant Details
+- Job Seeker Profile
+- Avatar / Resume Upload
+- Skills / Education / Experience CRUD
+- Saved Jobs
+- Recommendations
+- Employee Management
+- Attendance
+- Admin Employee UI
+- Employee Dashboard
+- Public Job Portal
+- Job Seeker Dashboard + Profile
+- Employer Dashboard
+- Recruitment / Applicant Screening
+- Application Status Pipeline
+- Interview Management
+- Hiring â†’ Employee Conversion
+
+HIRING â†’ EMPLOYEE CONVERSION is fully verified:
+
+- Accepted applicant can be hired
+- Existing User reused
+- JOB_SEEKER role preserved
+- EMPLOYEE role added
+- EmployeeProfile created/reused
+- No duplicate User
+- No duplicate EmployeeProfile
+- Transactional conversion
+- Admin employee list updates immediately
+- Candidate can immediately access Employee Portal
+- Attendance works for newly hired candidate
+- Hiring/security/regression tests passed
+- Frontend production build passes with zero errors
+
+DO NOT rebuild completed modules.
+
+==================================================
+NEXT MILESTONE
+==================================================
+
+HR / LEAVE MANAGEMENT
+
+This milestone must establish the HR foundation needed for proper workforce management.
+
+Current employee architecture is still intentionally minimal.
+
+Known current EmployeeProfile fields:
+
+- user_id
+- department
+- joined_date
+
+Current gap:
+EmployeeProfile is not yet strongly company-scoped and does not yet provide a complete HR structure.
+
+The goal of this milestone is NOT to build payroll, performance reviews, advanced shifts, or a giant HRIS.
+
+The goal is to build a clean v1 HR foundation:
+
+Company
+  â†“
+Employees
+  â†“
+Employment Structure
+  â†“
+Leave Types
+  â†“
+Leave Requests
+  â†“
+Approval / Rejection
+  â†“
+Employee Leave History
+
+Target structure:
+
+Company
+â”œâ”€â”€ Departments
+â”‚   â””â”€â”€ Positions
+â”‚
+â””â”€â”€ Employees
+    â”œâ”€â”€ EmployeeProfile
+    â”œâ”€â”€ EmploymentRecord
+    â”œâ”€â”€ Attendance
+    â””â”€â”€ LeaveRequests
+
+==================================================
+CRITICAL ARCHITECTURE RULES
+==================================================
+
+1. Inspect actual code before modifying anything.
+2. Preserve all working Employee and Attendance functionality.
+3. Do NOT destructively replace the existing `department` string at the start.
+4. Migrate toward structured Department/Position relationships safely.
+5. Company isolation must be enforced on the backend.
+6. Do NOT create a second role system.
+7. Continue using existing RBAC roles.
+8. Keep multi-role users working.
+9. Do NOT overbuild payroll, shifts, salary history, performance management, or benefits.
+10. Do NOT start Notifications automatically.
+11. Do NOT start Analytics automatically.
+12. Test real authorization boundaries.
+13. Use PostgreSQL safely.
+14. Do NOT use destructive sync.
+15. Do NOT claim PASS unless actually verified.
+
+Current backend architecture:
+
+Request
+â†’ Route
+â†’ Authentication
+â†’ Authorization
+â†’ Validation
+â†’ Controller
+â†’ Service
+â†’ Sequelize
+â†’ PostgreSQL
+
+Preserve this architecture.
+
+==================================================
+PHASE 1 â€” INSPECT CURRENT HR-RELATED CODE
+==================================================
+
+Inspect:
+
+server/src/models/User.js
+server/src/models/Role.js
+server/src/models/UserRole.js
+server/src/models/Company.js
+server/src/models/EmployeeProfile.js
+server/src/models/Attendance.js
+server/src/models/index.js
+
+server/src/routes/employee.routes.js
+server/src/controllers/employee.controller.js
+server/src/services/employee.service.js
+server/src/validators/employee.validator.js
+
+server/src/routes/attendance.routes.js
+server/src/controllers/attendance.controller.js
+server/src/services/attendance.service.js
+
+server/src/middleware/auth.middleware.js
+server/src/middleware/authorize.middleware.js
+
+Also inspect:
+
+client/src/pages/admin/
+client/src/pages/employee/
+client/src/layouts/
+client/src/components/
+client/src/contexts/AuthContext.tsx
+client/src/components/ProtectedRoute.tsx
+client/src/App.tsx
+client/src/styles/dashboard.css
+
+Search the repository for:
+
+Department
+Position
+EmploymentRecord
+LeaveType
+LeaveRequest
+LeaveBalance
+HR
+Manager
+Supervisor
+approval
+annual leave
+sick leave
+
+If anything exists:
+reuse it.
+
+Do not duplicate models/modules.
+
+==================================================
+PHASE 2 â€” VERIFY CURRENT EMPLOYEE DATA MODEL
+==================================================
+
+Document the exact current EmployeeProfile model.
+
+Confirm:
+- fields
+- indexes
+- unique constraints
+- associations
+- aliases
+
+Known expected current shape:
+
+id
+user_id
+department
+joined_date
+
+But inspect actual code.
+
+Also inspect:
+- how Admin employee list finds employees
+- how Attendance identifies employee users
+- whether Company relation exists anywhere for employee data
+- whether hiring flow stores company context
+
+This inspection determines the safest HR extension strategy.
+
+==================================================
+PHASE 3 â€” COMPANY-SCOPED EMPLOYEE STRATEGY
+==================================================
+
+This is a key architecture decision.
+
+Current system can hire from:
+
+Application
+â†’ Job
+â†’ Company
+
+Therefore the hiring flow already knows which company hired the candidate.
+
+We now need a reliable company association for employment.
+
+Recommended:
+add `company_id` to EmployeeProfile OR introduce EmploymentRecord with company_id.
+
+Preferred architecture:
+
+EmployeeProfile:
+- identity-level employee extension
+- one per User
+
+EmploymentRecord:
+- company-specific employment relationship
+
+This is more future-proof.
+
+Example:
+
+User
+  â†“
+EmployeeProfile
+  â†“
+EmploymentRecord
+      â”œâ”€â”€ company_id
+      â”œâ”€â”€ department_id
+      â”œâ”€â”€ position_id
+      â”œâ”€â”€ start_date
+      â”œâ”€â”€ end_date
+      â””â”€â”€ status
+
+This supports:
+- multiple employers over time
+- rehire
+- employment history
+- company isolation
+- future HR needs
+
+IMPORTANT:
+Do not automatically choose this without inspecting the current code and complexity.
+
+Compare:
+
+OPTION A:
+Add company_id directly to EmployeeProfile
+
+OPTION B:
+Create EmploymentRecord and keep EmployeeProfile user-scoped
+
+Prefer OPTION B if it can be introduced safely without breaking existing Employee/Attendance code.
+
+Report the decision and reasoning.
+
+==================================================
+PHASE 4 â€” EMPLOYMENT RECORD MODEL
+==================================================
+
+If EmploymentRecord is the chosen design, create:
+
+server/src/models/EmploymentRecord.js
+
+Recommended fields:
+
+id
+user_id
+company_id
+department_id
+position_id
+start_date
+end_date
+status
+employment_type
+created_at
+updated_at
+
+Do not invent fields blindly.
+
+Minimum useful fields:
+
+id
+user_id
+company_id
+start_date
+end_date
+status
+
+Recommended status enum:
+
+ACTIVE
+INACTIVE
+TERMINATED
+
+But inspect whether an existing employment/user status convention should be reused.
+
+Do not confuse this with User.status:
+
+ACTIVE
+INACTIVE
+SUSPENDED
+
+EmploymentRecord status is a different domain concept.
+
+If a new enum is introduced:
+document it clearly.
+
+==================================================
+PHASE 5 â€” LINK HIRING TO EMPLOYMENT RECORD
+==================================================
+
+If EmploymentRecord is created:
+
+Update the existing hiring conversion flow so:
+
+Accepted Application
+â†’ Hire
+â†’ EmployeeProfile exists
+â†’ EMPLOYEE role exists
+â†’ EmploymentRecord created for:
+
+user_id
+company_id from Application.Job.Company
+start_date
+status ACTIVE
+
+Use the same transaction.
+
+Idempotency:
+repeated hire call must NOT create duplicate active employment records.
+
+Preferred rule:
+
+One active employment record per user + company.
+
+Do not assume one active employment total across all companies unless product rules require that.
+
+==================================================
+PHASE 6 â€” DEPARTMENT MODEL
+==================================================
+
+Create structured Department support.
+
+Potential model:
+
+server/src/models/Department.js
+
+Recommended fields:
+
+id
+company_id
+name
+description
+is_active
+created_at
+updated_at
+
+Minimum required:
+
+id
+company_id
+name
+
+Constraints:
+- department name should be unique within company where practical
+- same department name may exist in different companies
+
+Association:
+
+Company.hasMany(Department)
+Department.belongsTo(Company)
+
+EmploymentRecord belongsTo Department if EmploymentRecord architecture is used.
+
+Do NOT immediately delete existing EmployeeProfile.department string.
+
+Keep backward compatibility during migration.
+
+==================================================
+PHASE 7 â€” POSITION MODEL
+==================================================
+
+Create:
+
+server/src/models/Position.js
+
+Recommended:
+
+id
+company_id
+department_id
+title
+description
+is_active
+
+Minimum:
+
+id
+company_id
+department_id
+title
+
+Associations:
+
+Company.hasMany(Position)
+Department.hasMany(Position)
+Position.belongsTo(Department)
+EmploymentRecord belongsTo Position
+
+Do not create salary grades or levels yet.
+
+==================================================
+PHASE 8 â€” HR ROLE STRATEGY
+==================================================
+
+Current roles include:
+
+ADMIN
+JOB_SEEKER
+EMPLOYER
+EMPLOYEE
+
+There is no dedicated HR/MANAGER role yet.
+
+DO NOT introduce a large permission system during this milestone unless absolutely necessary.
+
+Recommended v1 authorization:
+
+ADMIN:
+global oversight
+
+EMPLOYER:
+HR-like company management for companies they own
+
+EMPLOYEE:
+can manage only their own leave requests
+
+This is enough for current milestone.
+
+Document that:
+
+HR
+MANAGER
+RECRUITER
+
+remain future RBAC expansion.
+
+Do not create duplicate role concepts inside LeaveRequest.
+
+==================================================
+PHASE 9 â€” DEPARTMENT BACKEND
+==================================================
+
+Create:
+
+server/src/routes/department.routes.js
+server/src/controllers/department.controller.js
+server/src/services/department.service.js
+server/src/validators/department.validator.js
+
+Suggested endpoints:
+
+GET /api/departments/company/:companyId
+POST /api/departments
+PUT /api/departments/:id
+DELETE /api/departments/:id
+
+But preserve actual route conventions.
+
+Authorization:
+
+EMPLOYER:
+only company owner
+
+ADMIN:
+allowed
+
+EMPLOYEE:
+read-only only if genuinely needed
+
+Delete strategy:
+prefer safe restriction or soft deactivation if department is in use.
+
+Do not cascade-delete employee history.
+
+==================================================
+PHASE 10 â€” POSITION BACKEND
+==================================================
+
+Create similar module:
+
+server/src/routes/position.routes.js
+server/src/controllers/position.controller.js
+server/src/services/position.service.js
+server/src/validators/position.validator.js
+
+Suggested endpoints:
+
+GET /api/positions/company/:companyId
+GET /api/positions/department/:departmentId
+POST /api/positions
+PUT /api/positions/:id
+DELETE /api/positions/:id
+
+Authorization:
+same company ownership rules.
+
+Do not allow Employer A to create position inside Employer B's department.
+
+==================================================
+PHASE 11 â€” LEAVE TYPE MODEL
+==================================================
+
+Create:
+
+server/src/models/LeaveType.js
+
+LeaveType belongs to Company.
+
+Recommended fields:
+
+id
+company_id
+name
+description
+default_days
+is_paid
+requires_document
+is_active
+created_at
+updated_at
+
+Do NOT overbuild accrual rules yet.
+
+Minimum viable fields:
+
+id
+company_id
+name
+description
+default_days
+is_paid
+is_active
+
+Example leave types are DATA, not hard-coded enums:
+
+Annual Leave
+Sick Leave
+Personal Leave
+Unpaid Leave
+
+Do NOT hard-code these as Sequelize ENUM values.
+
+Companies should be able to configure leave types.
+
+==================================================
+PHASE 12 â€” LEAVE REQUEST MODEL
+==================================================
+
+Create:
+
+server/src/models/LeaveRequest.js
+
+Recommended fields:
+
+id
+user_id
+company_id
+leave_type_id
+start_date
+end_date
+reason
+status
+reviewed_by
+reviewed_at
+review_note
+created_at
+updated_at
+
+Status enum:
+
+PENDING
+APPROVED
+REJECTED
+CANCELLED
+
+This enum is appropriate because workflow states are fixed.
+
+Associations:
+
+User.hasMany(LeaveRequest)
+LeaveRequest.belongsTo(User)
+
+Company.hasMany(LeaveRequest)
+LeaveRequest.belongsTo(Company)
+
+LeaveType.hasMany(LeaveRequest)
+LeaveRequest.belongsTo(LeaveType)
+
+reviewed_by:
+belongsTo User as reviewer
+
+Be careful with aliases.
+
+==================================================
+PHASE 13 â€” LEAVE REQUEST VALIDATION
+==================================================
+
+Create:
+
+server/src/validators/leave.validator.js
+
+Validate:
+
+leave_type_id
+start_date
+end_date
+reason
+
+Rules:
+
+- start_date required
+- end_date required
+- end_date >= start_date
+- leave type must belong to employee's company
+- employee must have ACTIVE employment relationship for that company
+- reason length reasonable
+- employee cannot submit leave for another user
+
+Recommended:
+block leave starting before current date unless business requirements allow retroactive leave.
+
+Use judgment and document decision.
+
+==================================================
+PHASE 14 â€” LEAVE DAY CALCULATION
+==================================================
+
+Implement a clear v1 day calculation.
+
+Do NOT build holiday calendars yet.
+
+Recommended v1:
+
+inclusive calendar days:
+
+days =
+(end_date - start_date) + 1
+
+Document clearly that weekends/public holidays are not excluded yet.
+
+Alternative:
+business days only if current project has business calendar support.
+
+Do not invent holiday logic.
+
+Return calculated days in response where useful.
+
+==================================================
+PHASE 15 â€” OVERLAPPING LEAVE PROTECTION
+==================================================
+
+Employee must not create overlapping active requests.
+
+Check overlap against:
+
+PENDING
+APPROVED
+
+Recommended overlap rule:
+
+existing.start_date <= new.end_date
+AND
+existing.end_date >= new.start_date
+
+Reject with clean 409/400 response.
+
+Do not block overlap against:
+
+REJECTED
+CANCELLED
+
+Test this carefully.
+
+==================================================
+PHASE 16 â€” LEAVE BALANCE STRATEGY
+==================================================
+
+Do NOT build a complicated accrual engine yet.
+
+But we need a useful v1 balance.
+
+Preferred v1:
+
+LeaveType.default_days
+minus
+sum(days of APPROVED LeaveRequests for current period)
+
+Potential current period:
+calendar year
+
+Example:
+
+Annual Leave default_days = 18
+
+Approved:
+5 days
+
+Remaining:
+13 days
+
+If LeaveType has no default_days:
+balance may be null / unlimited depending on policy.
+
+Do not invent complex carry-over.
+
+No:
+- monthly accrual
+- anniversary accrual
+- pro-rating
+- carry-over
+- expiry
+- negative balance
+
+unless already supported.
+
+Clearly document v1 assumptions.
+
+==================================================
+PHASE 17 â€” LEAVE TYPE BACKEND
+==================================================
+
+Create CRUD APIs.
+
+Suggested:
+
+GET /api/leave/types
+GET /api/leave/types/company/:companyId
+POST /api/leave/types
+PUT /api/leave/types/:id
+DELETE /api/leave/types/:id
+
+Employer:
+manage types only for owned company.
+
+Employee:
+can list active leave types for their own active company.
+
+Admin:
+oversight.
+
+Prefer deactivation over destructive delete when requests already reference a type.
+
+==================================================
+PHASE 18 â€” EMPLOYEE LEAVE APIs
+==================================================
+
+Create routes such as:
+
+POST /api/leave/requests
+GET /api/leave/my
+GET /api/leave/balance
+PATCH /api/leave/requests/:id/cancel
+
+Employee actions:
+
+Create own request
+View own requests
+View own leave balance
+Cancel own PENDING request
+
+Recommended:
+APPROVED leave cancellation should not be allowed directly by employee in v1 unless reviewed.
+
+Do not allow employee to approve/reject.
+
+==================================================
+PHASE 19 â€” EMPLOYER LEAVE REVIEW APIs
+==================================================
+
+Employer needs company-scoped review.
+
+Suggested:
+
+GET /api/leave/company/:companyId/requests
+PATCH /api/leave/requests/:id/approve
+PATCH /api/leave/requests/:id/reject
+
+Or:
+
+PATCH /api/leave/requests/:id/status
+
+Choose consistent project style.
+
+Preferred explicit routes:
+
+approve
+reject
+
+because business rules differ.
+
+Approval should set:
+
+status = APPROVED
+reviewed_by = req.user.id
+reviewed_at = now
+
+Rejection:
+
+status = REJECTED
+reviewed_by
+reviewed_at
+review_note optional/required
+
+Do not allow reviewing request from another company.
+
+==================================================
+PHASE 20 â€” LEAVE APPROVAL TRANSACTION / CONCURRENCY
+==================================================
+
+Approval must be safe.
+
+Before approving:
+
+- request must still be PENDING
+- leave type still valid
+- active employment still exists
+- balance must be sufficient if finite balance is enforced
+
+Consider transaction + row lock if needed to avoid simultaneous approvals overspending balance.
+
+At minimum:
+use transaction for approval.
+
+If two approvers simultaneously approve requests against same balance:
+avoid incorrect remaining balance.
+
+Use PostgreSQL capabilities appropriately.
+
+==================================================
+PHASE 21 â€” ATTENDANCE INTERACTION
+==================================================
+
+Important:
+Do not tightly couple Attendance and Leave in a risky way.
+
+For v1:
+
+Approved leave does NOT need to auto-create attendance rows.
+
+But when displaying employee attendance/dashboard:
+
+it may be useful to show:
+
+"Approved Leave Today"
+
+instead of encouraging Check In.
+
+Recommended behavior:
+
+If employee has APPROVED leave covering today:
+show leave status banner.
+
+Decide whether check-in should be blocked.
+
+Preferred v1:
+DO NOT automatically block attendance unless business rule is certain.
+
+People may still work during approved leave or return early.
+
+So:
+show warning/status only.
+
+Document this choice.
+
+==================================================
+PHASE 22 â€” EMPLOYEE LEAVE UI
+==================================================
+
+Add Employee portal route:
+
+/employee/leave
+
+Add navigation item:
+
+Leave
+
+Create:
+
+client/src/pages/employee/Leave.tsx
+
+Sections:
+
+1. Leave Balance Cards
+2. Request Leave button
+3. My Leave Requests
+4. Status filters/history
+
+Show:
+
+Leave Type
+Start Date
+End Date
+Days
+Reason
+Status
+Reviewer note
+Created date
+
+Statuses:
+
+PENDING
+APPROVED
+REJECTED
+CANCELLED
+
+==================================================
+PHASE 23 â€” REQUEST LEAVE MODAL
+==================================================
+
+Create:
+
+client/src/components/employee/RequestLeaveModal.tsx
+
+Fields:
+
+Leave Type
+Start Date
+End Date
+Reason
+
+Show calculated day count before submission.
+
+Show remaining balance if available.
+
+Validation:
+frontend + backend.
+
+Do not trust frontend balance validation alone.
+
+After submit:
+
+invalidate:
+["myLeaveRequests"]
+["leaveBalance"]
+
+==================================================
+PHASE 24 â€” EMPLOYEE CANCEL REQUEST
+==================================================
+
+Allow employee to cancel their own:
+
+PENDING
+
+request.
+
+Use confirmation modal.
+
+Do not delete LeaveRequest.
+
+Set:
+
+CANCELLED
+
+This preserves history.
+
+==================================================
+PHASE 25 â€” EMPLOYER HR / LEAVE UI
+==================================================
+
+Add Employer route:
+
+/employer/hr
+
+or:
+
+/employer/leave
+
+Choose whichever fits current navigation better.
+
+Recommended:
+
+/employer/hr
+
+This can become future HR hub.
+
+Create:
+
+client/src/pages/employer/HRDashboard.tsx
+
+v1 sections:
+
+- Employee Count
+- Pending Leave Requests
+- Approved Leave
+- Departments
+- Positions
+- Leave Types
+
+Quick actions:
+
+Manage Departments
+Manage Positions
+Manage Leave Types
+Review Leave Requests
+
+==================================================
+PHASE 26 â€” DEPARTMENT UI
+==================================================
+
+Create:
+
+client/src/components/employer/DepartmentManager.tsx
+
+Support:
+
+- List
+- Create
+- Edit
+- deactivate/delete if safe
+
+Fields:
+
+Name
+Description if model supports it
+
+Show employee count if data is readily available.
+
+Do not add unnecessary hierarchy yet.
+
+==================================================
+PHASE 27 â€” POSITION UI
+==================================================
+
+Create:
+
+client/src/components/employer/PositionManager.tsx
+
+Support:
+
+- Department selection
+- Position title
+- Description if supported
+- active status if supported
+
+Do not build reporting lines/managers yet.
+
+==================================================
+PHASE 28 â€” EMPLOYEE ASSIGNMENT UI
+==================================================
+
+Employer should be able to assign/update:
+
+Department
+Position
+
+for employees belonging to their company.
+
+This depends on chosen EmploymentRecord architecture.
+
+Build safe UI from HR dashboard or employee detail.
+
+Do not modify User account data unnecessarily.
+
+If old EmployeeProfile.department string exists:
+keep it synchronized only if needed for backward compatibility.
+
+Example:
+structured Department becomes source of truth,
+legacy string may mirror department name temporarily.
+
+Document this explicitly.
+
+==================================================
+PHASE 29 â€” LEAVE TYPE MANAGEMENT UI
+==================================================
+
+Create:
+
+client/src/components/employer/LeaveTypeManager.tsx
+
+Employer can:
+
+Create Leave Type
+Edit Leave Type
+Activate/Deactivate
+
+Fields:
+
+Name
+Description
+Default Days
+Paid?
+Active?
+
+Do not expose complicated accrual rules yet.
+
+==================================================
+PHASE 30 â€” LEAVE REVIEW UI
+==================================================
+
+Create:
+
+client/src/pages/employer/LeaveRequests.tsx
+
+or embed into HRDashboard if clean.
+
+Show:
+
+Employee
+Department
+Leave Type
+Dates
+Days
+Reason
+Status
+Submitted At
+
+Filters:
+
+All
+Pending
+Approved
+Rejected
+Cancelled
+
+Actions for PENDING:
+
+Approve
+Reject
+
+Reject modal:
+Review Note
+
+Approve confirmation:
+show:
+Employee
+Leave Type
+Dates
+Days
+Remaining Balance Before/After if available
+
+==================================================
+PHASE 31 â€” COMPANY ISOLATION
+==================================================
+
+This is critical.
+
+Employer A must NEVER see:
+
+Employer B departments
+Employer B positions
+Employer B employees
+Employer B leave types
+Employer B leave requests
+
+Every service must enforce:
+
+Company.owner_id === req.user.id
+
+Do not rely on company_id provided by frontend.
+
+Always verify ownership.
+
+==================================================
+PHASE 32 â€” EMPLOYEE COMPANY RESOLUTION
+==================================================
+
+Employee leave request must resolve company from server-side employment relationship.
+
+Do NOT accept arbitrary:
+
+company_id
+
+from employee payload.
+
+Resolve:
+
+authenticated User
+â†’ active EmploymentRecord
+â†’ Company
+
+If current architecture only allows one company:
+use that active employment.
+
+If multiple active companies are supported:
+the UI/API must explicitly select an employment/company context.
+
+Do not silently guess.
+
+For current product:
+prefer one active company context if that matches business rules.
+
+Document it.
+
+==================================================
+PHASE 33 â€” MULTI-ROLE BEHAVIOR
+==================================================
+
+Test:
+
+JOB_SEEKER + EMPLOYEE:
+can access both portals.
+
+EMPLOYER + EMPLOYEE:
+can:
+- review company leave requests as Employer
+- submit own leave as Employee if they also have an employee relationship
+
+ADMIN:
+oversight.
+
+Do not let default route logic remove access.
+
+==================================================
+PHASE 34 â€” ADMIN INTEGRATION
+==================================================
+
+Admin employee management should continue working.
+
+Optionally show:
+
+Company
+Department
+Position
+
+if newly structured data is available.
+
+Do not redesign entire Admin UI unless needed.
+
+Leave management:
+Admin may access all requests according to existing global authority.
+
+If adding Admin leave page becomes too large:
+backend support is sufficient for v1, and UI can remain Employer-focused.
+
+Report decision.
+
+==================================================
+PHASE 35 â€” LEAVE STATUS RULES
+==================================================
+
+Allowed transitions:
+
+PENDING â†’ APPROVED
+PENDING â†’ REJECTED
+PENDING â†’ CANCELLED
+
+Do NOT allow:
+
+APPROVED â†’ PENDING
+REJECTED â†’ APPROVED
+CANCELLED â†’ APPROVED
+
+unless explicitly designed.
+
+If Admin correction is needed later:
+future enhancement.
+
+State transitions must be enforced server-side.
+
+==================================================
+PHASE 36 â€” LEAVE BALANCE EDGE CASES
+==================================================
+
+Test:
+
+Default balance = 18
+
+Approved = 5
+
+Remaining = 13
+
+Pending requests:
+decide whether pending days reduce available balance.
+
+Recommended:
+show:
+
+Entitled: 18
+Approved Used: 5
+Pending: 3
+Remaining Approved Balance: 13
+
+For approval validation:
+consider approved + request being approved.
+
+Do not permanently deduct pending leave.
+
+Test exactly.
+
+==================================================
+PHASE 37 â€” DATE EDGE CASES
+==================================================
+
+Test:
+
+start > end
+â†’ reject
+
+same-day leave
+â†’ 1 day
+
+overlapping pending request
+â†’ reject
+
+overlapping approved request
+â†’ reject
+
+overlap with rejected
+â†’ allowed
+
+overlap with cancelled
+â†’ allowed
+
+past date request
+â†’ enforce chosen rule
+
+year boundary
+â†’ calculate correctly
+
+timezone:
+dates should not shift unexpectedly.
+
+Leave is date-based, not timestamp-based.
+
+Prefer Sequelize DATEONLY for leave dates.
+
+==================================================
+PHASE 38 â€” SECURITY TEST MATRIX
+==================================================
+
+Use:
+
+Employer A
+Employer B
+Employee A
+Employee B
+Job Seeker only
+Admin
+
+DEPARTMENTS:
+
+Employer A create A department
+â†’ success
+
+Employer B edit A department
+â†’ 403
+
+POSITIONS:
+
+Employer A create position in A department
+â†’ success
+
+Employer B create position in A department
+â†’ 403
+
+LEAVE TYPES:
+
+Employer A create A leave type
+â†’ success
+
+Employer B edit A leave type
+â†’ 403
+
+LEAVE REQUEST:
+
+Employee A submit leave
+â†’ success
+
+Employee A submit leave for Employee B
+â†’ impossible / rejected
+
+Job Seeker-only submit leave
+â†’ 403
+
+EMPLOYER REVIEW:
+
+Employer A approve A employee leave
+â†’ success
+
+Employer B approve A employee leave
+â†’ 403
+
+Employee approve own leave
+â†’ 403
+
+Admin:
+verify global behavior.
+
+==================================================
+PHASE 39 â€” FULL E2E HR FLOW
+==================================================
+
+Execute:
+
+1. Employer A login.
+
+2. Create:
+Engineering Department
+
+3. Create:
+Frontend Developer Position
+
+4. Assign hired Employee A to:
+Engineering
+Frontend Developer
+
+5. Create Leave Type:
+Annual Leave
+default_days = 18
+is_paid = true
+
+6. Employee A login.
+
+7. Open:
+/employee/leave
+
+8. Verify:
+Annual Leave balance = 18
+
+9. Employee submits:
+3-day Annual Leave request.
+
+10. Verify:
+status = PENDING
+
+11. Employer A opens HR/Leave review.
+
+12. Verify request visible.
+
+13. Employer approves.
+
+14. Verify:
+status = APPROVED
+
+15. Employee refreshes.
+
+16. Verify:
+Approved request displayed.
+
+17. Verify:
+remaining balance = 15
+
+18. Submit overlapping request.
+
+19. Verify:
+rejected.
+
+20. Submit another valid request.
+
+21. Employer rejects with note.
+
+22. Employee sees:
+REJECTED + review note.
+
+23. Submit third request.
+
+24. Employee cancels while PENDING.
+
+25. Verify:
+CANCELLED.
+
+==================================================
+PHASE 40 â€” HIRING REGRESSION
+==================================================
+
+Hire a new accepted applicant.
+
+Verify new hire automatically receives proper employment-company relationship according to chosen architecture.
+
+Expected:
+
+same User
+EMPLOYEE role
+EmployeeProfile
+EmploymentRecord or company linkage
+
+Then:
+new employee can request leave.
+
+This is critical.
+
+==================================================
+PHASE 41 â€” ATTENDANCE REGRESSION
+==================================================
+
+Verify:
+
+check-in
+check-out
+attendance history
+duplicate active session prevention
+
+Still works after HR schema changes.
+
+If approved leave is today:
+verify any leave banner/status behavior.
+
+Do not break attendance authorization.
+
+==================================================
+PHASE 42 â€” INTERVIEW / RECRUITMENT REGRESSION
+==================================================
+
+Smoke test:
+
+Apply
+Review
+Schedule Interview
+Complete Interview
+Accept
+Hire
+
+No regressions.
+
+==================================================
+PHASE 43 â€” REACT QUERY ARCHITECTURE
+==================================================
+
+Use stable query keys.
+
+Suggested:
+
+["departments", companyId]
+["positions", companyId]
+["leaveTypes", companyId]
+["myLeaveRequests"]
+["leaveBalance"]
+["companyLeaveRequests", companyId]
+["hrEmployees", companyId]
+
+Use existing project conventions where possible.
+
+Mutations should invalidate relevant caches only.
+
+==================================================
+PHASE 44 â€” LOADING / EMPTY / ERROR STATES
+==================================================
+
+Handle:
+
+No departments
+No positions
+No leave types
+No leave requests
+No employment relationship
+No company
+No balance configuration
+
+Never show blank page.
+
+Examples:
+
+"No leave types configured yet."
+
+"Your company has not configured leave policies."
+
+"No pending leave requests."
+
+==================================================
+PHASE 45 â€” RESPONSIVE UX
+==================================================
+
+Test:
+
+Employee Leave page:
+desktop
+tablet
+mobile
+
+HR dashboard:
+desktop
+tablet
+mobile
+
+Leave request modal:
+mobile
+
+Approval/rejection modals:
+mobile
+
+Tables:
+responsive overflow or card conversion.
+
+==================================================
+PHASE 46 â€” DATABASE SAFETY
+==================================================
+
+Do NOT use:
+
+sequelize.sync({ force: true })
+
+Do NOT drop production/dev tables.
+
+If new models are introduced while project still uses sync:
+add them safely.
+
+If schema alteration is needed:
+prefer explicit SQL or safe sync alter only if project policy allows it.
+
+Report exact DB changes.
+
+Do not silently mutate schema.
+
+==================================================
+PHASE 47 â€” INDEXES / CONSTRAINTS
+==================================================
+
+Add sensible indexes.
+
+EmploymentRecord:
+user_id
+company_id
+status
+
+Department:
+company_id
+
+Position:
+company_id
+department_id
+
+LeaveType:
+company_id
+
+LeaveRequest:
+user_id
+company_id
+leave_type_id
+status
+start_date
+end_date
+
+Add uniqueness only where business rule supports it.
+
+Example:
+Department name unique per company.
+
+Do not globally unique department name.
+
+==================================================
+PHASE 48 â€” BUILD / TEST
+==================================================
+
+Run backend tests.
+
+Create dedicated test file if appropriate:
+
+server/test_hr_leave_flow.js
+
+Verify:
+all HR flows
+security matrix
+company isolation
+leave overlap
+balance
+approval/rejection
+hiring regression
+attendance regression
+
+Then run:
+
+npm run build
+
+Expected:
+
+TypeScript:
+0 errors
+
+Vite:
+successful build
+
+Backend:
+starts without runtime errors.
+
+==================================================
+PHASE 49 â€” FINAL ARCHITECTURE REVIEW
+==================================================
+
+At the end inspect whether the resulting architecture cleanly supports future:
+
+HR role
+Manager approval
+Leave accrual
+Public holiday calendars
+Termination
+Rehire
+Multiple employers
+Payroll
+Notifications
+Analytics
+
+Do not implement them.
+
+Only identify whether current design leaves room.
+
+==================================================
+PHASE 50 â€” FINAL REPORT
+==================================================
+
+Return:
+
+# 1. Verified Existing HR State
+
+# 2. HR Architecture Decision
+
+Explain:
+EmployeeProfile strategy
+EmploymentRecord strategy
+Company linkage
+Backward compatibility
+
+# 3. New Data Models
+
+For each:
+fields
+enums
+indexes
+associations
+
+# 4. Database Changes
+
+Exact changes.
+
+# 5. Files Created
+
+Path + purpose.
+
+# 6. Files Changed
+
+Path + change + reason.
+
+# 7. Department API
+
+# 8. Position API
+
+# 9. Leave Type API
+
+# 10. Leave Request API
+
+# 11. Employment Record Integration
+
+# 12. Hiring Integration
+
+# 13. Employee Leave UI
+
+# 14. Employer HR UI
+
+# 15. Leave Balance Logic
+
+# 16. Overlap Logic
+
+# 17. Approval Workflow
+
+# 18. Company Isolation Results
+
+# 19. Multi-role Results
+
+# 20. Attendance Integration
+
+# 21. Recruitment/Hiring Regression
+
+# 22. Security Test Results
+
+# 23. Edge Case Results
+
+# 24. Responsive Results
+
+# 25. Build Result
+
+# 26. Remaining Technical Debt
+
+Rank:
+
+CRITICAL
+HIGH
+MEDIUM
+LOW
+
+Do not invent issues.
+
+# 27. Future HR Expansion Readiness
+
+Report readiness for:
+
+HR Role
+Manager Role
+Leave Accrual
+Holidays
+Termination
+Rehire
+Payroll
+Notifications
+Analytics
+
+# 28. Final Verdict
+
+Choose exactly one:
+
+A. HR / Leave Management complete, ready for Advanced RBAC / Permissions
+
+B. HR / Leave Management mostly complete, fixes required first
+
+C. HR / Leave Management not ready
+
+Explain why.
+
+==================================================
+FINAL HANDOFF BLOCK
+==================================================
+
+At the very end provide:
+
+# PASTE THIS INTO CHATGPT
+
+Include:
+
+- HR milestone status
+- employment architecture
+- company linkage
+- Department model
+- Position model
+- EmploymentRecord model
+- LeaveType model
+- LeaveRequest model
+- exact enums
+- exact API routes
+- leave balance algorithm
+- overlap rules
+- approval rules
+- employee UI
+- employer HR UI
+- security boundaries
+- hiring integration
+- attendance integration
+- test results
+- remaining technical debt
+- exact recommended next milestone
+
+This final block is critical because it will be pasted back into ChatGPT.
+
+==================================================
+FINAL IMPORTANT RULES
+==================================================
+
+1. Do not break existing EmployeeProfile data.
+2. Do not create duplicate Users.
+3. Do not create a second role system.
+4. Preserve multi-role access.
+5. Enforce company isolation server-side.
+6. Resolve employee company from server-side employment data.
+7. Do not trust company_id from employee payload.
+8. Keep LeaveType configurable, not hard-coded ENUM names.
+9. LeaveRequest status may use ENUM.
+10. Use DATEONLY for leave dates if appropriate.
+11. Block overlapping PENDING/APPROVED leave.
+12. Preserve leave history; cancel instead of delete.
+13. Use transaction for approval where balance consistency matters.
+14. Do not overbuild accrual/carry-over.
+15. Do not build payroll.
+16. Do not build performance reviews.
+17. Do not start Notifications.
+18. Do not start Analytics.
+19. Run HR E2E + security + regression tests.
+20. Stop after HR / Leave Management and return the final report.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-09-21T21:39:26+07:00.
+
+The user's current state is as follows:
+Running terminal commands:
+- npm run dev (in c:\Users\ROG\Documents\Home\WEB-PROJECT\thesis\sakol-universe\server, running for 8m10s)
+- npm run dev (in c:\Users\ROG\Documents\Home\WEB-PROJECT\thesis\sakol-universe\client, running for 8m3s)
+</ADDITIONAL_METADATA>
+<USER_SETTINGS_CHANGE>
+The user changed setting `Model Selection` from Gemini 3.8 Flash (Medium) to Gemini 3.1 Pro (High). No need to comment on this change if the user doesn't ask about it. If reporting what model you are, please use a human readable name instead of the exact string.
+</USER_SETTINGS_CHANGE>

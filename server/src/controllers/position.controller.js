@@ -1,0 +1,101 @@
+const positionService = require("../services/position.service");
+const { Company } = require("../models");
+
+exports.getCompanyPositions = async (req, res, next) => {
+  try {
+    const { companyId } = req.params;
+    const positions = await positionService.getCompanyPositions(companyId);
+
+    res.json({
+      success: true,
+      data: positions,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getDepartmentPositions = async (req, res, next) => {
+  try {
+    const { departmentId } = req.params;
+    const positions = await positionService.getDepartmentPositions(departmentId);
+
+    res.json({
+      success: true,
+      data: positions,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.createPosition = async (req, res, next) => {
+  try {
+    const { companyId } = req.body;
+    
+    const company = await Company.findByPk(companyId);
+    if (!company || (company.owner_id !== req.user.id && !req.user.roles.includes("ADMIN"))) {
+      const error = new Error("Not authorized");
+      error.statusCode = 403;
+      throw error;
+    }
+
+    const position = await positionService.createPosition(companyId, req.body);
+
+    res.status(201).json({
+      success: true,
+      message: "Position created successfully",
+      data: position,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.updatePosition = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { companyId } = req.body;
+
+    const company = await Company.findByPk(companyId);
+    if (!company || (company.owner_id !== req.user.id && !req.user.roles.includes("ADMIN"))) {
+      const error = new Error("Not authorized");
+      error.statusCode = 403;
+      throw error;
+    }
+
+    const position = await positionService.updatePosition(id, companyId, req.body);
+
+    res.json({
+      success: true,
+      message: "Position updated successfully",
+      data: position,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.deletePosition = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { companyId } = req.body; 
+
+    const company = await Company.findByPk(companyId);
+    if (!company || (company.owner_id !== req.user.id && !req.user.roles.includes("ADMIN"))) {
+      const error = new Error("Not authorized");
+      error.statusCode = 403;
+      throw error;
+    }
+
+    const result = await positionService.deletePosition(id, companyId);
+
+    res.json({
+      success: true,
+      message: result.deleted ? "Position deleted successfully" : "Position deactivated successfully",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

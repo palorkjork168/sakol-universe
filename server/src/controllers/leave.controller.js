@@ -1,0 +1,190 @@
+const leaveService = require("../services/leave.service");
+const { Company } = require("../models");
+
+// Employer Types
+exports.getCompanyLeaveTypes = async (req, res, next) => {
+  try {
+    const { companyId } = req.params;
+    // For employee viewing, maybe we don't want to enforce owner check here if they just want to see types.
+    // However, if we do:
+    const company = await Company.findByPk(companyId);
+    if (!company) {
+      const error = new Error("Company not found");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // Include inactive only if owner/admin
+    const isOwner = company.owner_id === req.user.id || req.user.roles.includes("ADMIN");
+    
+    const types = await leaveService.getLeaveTypes(companyId, isOwner);
+
+    res.json({
+      success: true,
+      data: types,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.createLeaveType = async (req, res, next) => {
+  try {
+    const { companyId } = req.body;
+
+    const company = await Company.findByPk(companyId);
+    if (!company || (company.owner_id !== req.user.id && !req.user.roles.includes("ADMIN"))) {
+      const error = new Error("Not authorized");
+      error.statusCode = 403;
+      throw error;
+    }
+
+    const leaveType = await leaveService.createLeaveType(companyId, req.body);
+
+    res.status(201).json({
+      success: true,
+      message: "Leave type created successfully",
+      data: leaveType,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.updateLeaveType = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { companyId } = req.body;
+
+    const company = await Company.findByPk(companyId);
+    if (!company || (company.owner_id !== req.user.id && !req.user.roles.includes("ADMIN"))) {
+      const error = new Error("Not authorized");
+      error.statusCode = 403;
+      throw error;
+    }
+
+    const leaveType = await leaveService.updateLeaveType(id, companyId, req.body);
+
+    res.json({
+      success: true,
+      message: "Leave type updated successfully",
+      data: leaveType,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.deleteLeaveType = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { companyId } = req.body;
+
+    const company = await Company.findByPk(companyId);
+    if (!company || (company.owner_id !== req.user.id && !req.user.roles.includes("ADMIN"))) {
+      const error = new Error("Not authorized");
+      error.statusCode = 403;
+      throw error;
+    }
+
+    const result = await leaveService.deleteLeaveType(id, companyId);
+
+    res.json({
+      success: true,
+      message: result.deleted ? "Leave type deleted successfully" : "Leave type deactivated successfully",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Employee Requests
+exports.getMyLeaveRequests = async (req, res, next) => {
+  try {
+    const requests = await leaveService.getMyLeaveRequests(req.user.id);
+    res.json({ success: true, data: requests });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getMyLeaveBalance = async (req, res, next) => {
+  try {
+    const balance = await leaveService.getMyLeaveBalance(req.user.id);
+    res.json({ success: true, data: balance });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.createLeaveRequest = async (req, res, next) => {
+  try {
+    const request = await leaveService.createLeaveRequest(req.user.id, req.body);
+    res.status(201).json({
+      success: true,
+      message: "Leave request submitted successfully",
+      data: request,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.cancelLeaveRequest = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const request = await leaveService.cancelLeaveRequest(id, req.user.id);
+    res.json({
+      success: true,
+      message: "Leave request cancelled successfully",
+      data: request,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Employer Review
+exports.getCompanyLeaveRequests = async (req, res, next) => {
+  try {
+    const { companyId } = req.params;
+
+    const company = await Company.findByPk(companyId);
+    if (!company || (company.owner_id !== req.user.id && !req.user.roles.includes("ADMIN"))) {
+      const error = new Error("Not authorized");
+      error.statusCode = 403;
+      throw error;
+    }
+
+    const requests = await leaveService.getCompanyLeaveRequests(companyId);
+    res.json({ success: true, data: requests });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.reviewLeaveRequest = async (req, res, next) => {
+  try {
+    const { id, action } = req.params; // action = approve | reject
+    const { companyId, review_note } = req.body;
+
+    const company = await Company.findByPk(companyId);
+    if (!company || (company.owner_id !== req.user.id && !req.user.roles.includes("ADMIN"))) {
+      const error = new Error("Not authorized");
+      error.statusCode = 403;
+      throw error;
+    }
+
+    const status = action === "approve" ? "APPROVED" : "REJECTED";
+    const request = await leaveService.reviewLeaveRequest(id, companyId, req.user.id, status, review_note);
+
+    res.json({
+      success: true,
+      message: `Leave request ${status.toLowerCase()} successfully`,
+      data: request,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

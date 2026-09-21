@@ -1,0 +1,107 @@
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "./contexts/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
+import PublicLayout from "./layouts/PublicLayout";
+
+import Home from "./pages/public/Home";
+import JobList from "./pages/public/JobList";
+import JobDetails from "./pages/public/JobDetails";
+import Login from "./pages/auth/Login";
+import Register from "./pages/auth/Register";
+
+import AdminLayout from "./layouts/AdminLayout";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import EmployeeManagement from "./pages/admin/EmployeeManagement";
+import EmployeeDashboard from "./pages/employee/EmployeeDashboard";
+import AttendanceHistory from "./pages/employee/AttendanceHistory";
+import Leave from "./pages/employee/Leave";
+
+
+import JobSeekerLayout from "./layouts/JobSeekerLayout";
+import JobSeekerDashboard from "./pages/job-seeker/JobSeekerDashboard";
+import Profile from "./pages/job-seeker/Profile";
+import MyApplications from "./pages/job-seeker/MyApplications";
+import SavedJobs from "./pages/job-seeker/SavedJobs";
+import RecommendedJobs from "./pages/job-seeker/RecommendedJobs";
+import MyInterviews from "./pages/job-seeker/MyInterviews";
+
+import EmployerLayout from "./layouts/EmployerLayout";
+import EmployerDashboard from "./pages/employer/EmployerDashboard";
+import CompanyProfile from "./pages/employer/CompanyProfile";
+import MyJobs from "./pages/employer/MyJobs";
+import CreateJob from "./pages/employer/CreateJob";
+import EditJob from "./pages/employer/EditJob";
+import Applicants from "./pages/employer/Applicants";
+import Interviews from "./pages/employer/Interviews";
+import HRDashboard from "./pages/employer/HRDashboard";
+import LeaveRequests from "./pages/employer/LeaveRequests";
+
+
+function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Public Portal Routes with PublicLayout */}
+          <Route element={<PublicLayout />}>
+            <Route path="/" element={<Home />} />
+            <Route path="/jobs" element={<JobList />} />
+            <Route path="/jobs/:id" element={<JobDetails />} />
+          </Route>
+
+          {/* Authentication Pages */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+
+          {/* Protected Admin Routes */}
+          <Route element={<ProtectedRoute requireAdmin={true} />}>
+            <Route element={<AdminLayout />}>
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/admin/employees" element={<EmployeeManagement />} />
+            </Route>
+          </Route>
+
+          {/* Protected Employee Routes */}
+          <Route element={<ProtectedRoute requireAdmin={false} requireEmployee={true} />}>
+            <Route path="/employee/dashboard" element={<EmployeeDashboard />} />
+            <Route path="/employee/attendance" element={<AttendanceHistory />} />
+            <Route path="/employee/leave" element={<Leave />} />
+          </Route>
+
+          {/* Protected Job Seeker Routes */}
+          <Route element={<ProtectedRoute requireJobSeeker={true} />}>
+            <Route element={<JobSeekerLayout />}>
+              <Route path="/job-seeker/dashboard" element={<JobSeekerDashboard />} />
+              <Route path="/job-seeker/profile" element={<Profile />} />
+              <Route path="/job-seeker/applications" element={<MyApplications />} />
+              <Route path="/job-seeker/saved" element={<SavedJobs />} />
+              <Route path="/job-seeker/recommended" element={<RecommendedJobs />} />
+              <Route path="/job-seeker/interviews" element={<MyInterviews />} />
+            </Route>
+          </Route>
+
+          {/* Protected Employer Routes */}
+          <Route element={<ProtectedRoute requireEmployer={true} />}>
+            <Route element={<EmployerLayout />}>
+              <Route path="/employer/dashboard" element={<EmployerDashboard />} />
+              <Route path="/employer/company" element={<CompanyProfile />} />
+              <Route path="/employer/jobs" element={<MyJobs />} />
+              <Route path="/employer/jobs/new" element={<CreateJob />} />
+              <Route path="/employer/jobs/:id/edit" element={<EditJob />} />
+              <Route path="/employer/jobs/:id/applicants" element={<Applicants />} />
+              <Route path="/employer/applicants" element={<Applicants />} />
+              <Route path="/employer/interviews" element={<Interviews />} />
+              <Route path="/employer/hr" element={<HRDashboard />} />
+              <Route path="/employer/leave-requests" element={<LeaveRequests />} />
+            </Route>
+          </Route>
+
+          {/* Catch-all Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
+  );
+}
+
+export default App;
