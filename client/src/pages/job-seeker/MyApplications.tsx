@@ -14,9 +14,10 @@ import {
   HelpCircle,
   XCircle,
   X,
-  Loader2,
   Eye,
 } from "lucide-react";
+import BackButton from "../../components/common/BackButton";
+import { SkeletonTableRow } from "../../components/common/Skeleton";
 
 export default function MyApplications() {
   const [selectedCoverLetter, setSelectedCoverLetter] = useState<{
@@ -31,6 +32,7 @@ export default function MyApplications() {
       const res = await api.get<GetMyApplicationsResponse>("/applications/my");
       return res.data.data.applications;
     },
+    staleTime: 60 * 1000,
   });
 
   const getStatusBadge = (status: ApplicationStatus) => {
@@ -168,6 +170,9 @@ export default function MyApplications() {
 
   return (
     <div className="dashboard-container">
+      {/* Back Navigation */}
+      <BackButton label="Back to Dashboard" fallback="/job-seeker/dashboard" />
+
       {/* Header */}
       <div className="dashboard-header" style={{ marginBottom: "1.5rem" }}>
         <div>
@@ -182,11 +187,23 @@ export default function MyApplications() {
       </div>
 
       {isLoading && (
-        <div style={{ textAlign: "center", padding: "3rem" }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", color: "var(--text-muted)" }}>
-            <Loader2 className="animate-spin" size={20} />
-            <span>Loading your applications...</span>
-          </div>
+        <div className="table-container">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Job & Company</th>
+                <th>Applied Date</th>
+                <th>Status</th>
+                <th>Cover Letter</th>
+                <th style={{ textAlign: "right" }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <SkeletonTableRow cols={5} />
+              <SkeletonTableRow cols={5} />
+              <SkeletonTableRow cols={5} />
+            </tbody>
+          </table>
         </div>
       )}
 

@@ -1,12 +1,11 @@
 const leaveService = require("../services/leave.service");
+const authorizationService = require("../services/authorization.service");
 const { Company } = require("../models");
 
 // Employer Types
 exports.getCompanyLeaveTypes = async (req, res, next) => {
   try {
     const { companyId } = req.params;
-    // For employee viewing, maybe we don't want to enforce owner check here if they just want to see types.
-    // However, if we do:
     const company = await Company.findByPk(companyId);
     if (!company) {
       const error = new Error("Company not found");
@@ -14,8 +13,8 @@ exports.getCompanyLeaveTypes = async (req, res, next) => {
       throw error;
     }
 
-    // Include inactive only if owner/admin
-    const isOwner = company.owner_id === req.user.id || req.user.roles.includes("ADMIN");
+    // Include inactive only if owner/admin/hr
+    const isOwner = await authorizationService.hasCompanyPermission(req.user, companyId, "leave.policy_manage");
     
     const types = await leaveService.getLeaveTypes(companyId, isOwner);
 
@@ -33,7 +32,14 @@ exports.createLeaveType = async (req, res, next) => {
     const { companyId } = req.body;
 
     const company = await Company.findByPk(companyId);
-    if (!company || (company.owner_id !== req.user.id && !req.user.roles.includes("ADMIN"))) {
+    if (!company) {
+      const error = new Error("Company not found");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const hasPerm = await authorizationService.hasCompanyPermission(req.user, companyId, "leave.policy_manage");
+    if (!hasPerm) {
       const error = new Error("Not authorized");
       error.statusCode = 403;
       throw error;
@@ -57,7 +63,14 @@ exports.updateLeaveType = async (req, res, next) => {
     const { companyId } = req.body;
 
     const company = await Company.findByPk(companyId);
-    if (!company || (company.owner_id !== req.user.id && !req.user.roles.includes("ADMIN"))) {
+    if (!company) {
+      const error = new Error("Company not found");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const hasPerm = await authorizationService.hasCompanyPermission(req.user, companyId, "leave.policy_manage");
+    if (!hasPerm) {
       const error = new Error("Not authorized");
       error.statusCode = 403;
       throw error;
@@ -81,7 +94,14 @@ exports.deleteLeaveType = async (req, res, next) => {
     const { companyId } = req.body;
 
     const company = await Company.findByPk(companyId);
-    if (!company || (company.owner_id !== req.user.id && !req.user.roles.includes("ADMIN"))) {
+    if (!company) {
+      const error = new Error("Company not found");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const hasPerm = await authorizationService.hasCompanyPermission(req.user, companyId, "leave.policy_manage");
+    if (!hasPerm) {
       const error = new Error("Not authorized");
       error.statusCode = 403;
       throw error;
@@ -151,7 +171,14 @@ exports.getCompanyLeaveRequests = async (req, res, next) => {
     const { companyId } = req.params;
 
     const company = await Company.findByPk(companyId);
-    if (!company || (company.owner_id !== req.user.id && !req.user.roles.includes("ADMIN"))) {
+    if (!company) {
+      const error = new Error("Company not found");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const hasPerm = await authorizationService.hasCompanyPermission(req.user, companyId, "leave.review");
+    if (!hasPerm) {
       const error = new Error("Not authorized");
       error.statusCode = 403;
       throw error;
@@ -170,7 +197,14 @@ exports.reviewLeaveRequest = async (req, res, next) => {
     const { companyId, review_note } = req.body;
 
     const company = await Company.findByPk(companyId);
-    if (!company || (company.owner_id !== req.user.id && !req.user.roles.includes("ADMIN"))) {
+    if (!company) {
+      const error = new Error("Company not found");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const hasPerm = await authorizationService.hasCompanyPermission(req.user, companyId, "leave.review");
+    if (!hasPerm) {
       const error = new Error("Not authorized");
       error.statusCode = 403;
       throw error;

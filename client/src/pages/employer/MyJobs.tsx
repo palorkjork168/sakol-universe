@@ -14,10 +14,11 @@ import {
   Edit,
   Tag,
   ExternalLink,
-  Loader2,
   AlertCircle,
   X,
 } from "lucide-react";
+import BackButton from "../../components/common/BackButton";
+import { SkeletonTableRow } from "../../components/common/Skeleton";
 
 export default function MyJobs() {
   const queryClient = useQueryClient();
@@ -30,6 +31,7 @@ export default function MyJobs() {
       const res = await api.get<GetMyJobsResponse>("/jobs/my");
       return res.data.data.jobs;
     },
+    staleTime: 60 * 1000,
   });
 
   const statusMutation = useMutation({
@@ -91,6 +93,9 @@ export default function MyJobs() {
 
   return (
     <div className="dashboard-container">
+      {/* Back Navigation */}
+      <BackButton label="Back to Dashboard" fallback="/employer/dashboard" />
+
       {/* Header */}
       <div className="dashboard-header" style={{ marginBottom: "1.5rem" }}>
         <div>
@@ -125,11 +130,25 @@ export default function MyJobs() {
       </div>
 
       {isLoading && (
-        <div style={{ textAlign: "center", padding: "4rem 1.5rem" }}>
-          <Loader2 className="animate-spin" size={24} style={{ color: "var(--primary)" }} />
-          <div style={{ marginTop: "0.5rem", color: "var(--text-muted)", fontSize: "0.875rem" }}>
-            Loading your job listings...
-          </div>
+        <div className="table-container">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Job Title & Company</th>
+                <th>Status</th>
+                <th>Employment Type</th>
+                <th>Applicants</th>
+                <th>Deadline</th>
+                <th style={{ textAlign: "right" }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <SkeletonTableRow cols={6} />
+              <SkeletonTableRow cols={6} />
+              <SkeletonTableRow cols={6} />
+              <SkeletonTableRow cols={6} />
+            </tbody>
+          </table>
         </div>
       )}
 
@@ -204,11 +223,17 @@ export default function MyJobs() {
                       <div>
                         <Link
                           to={`/employer/jobs/${job.id}/edit`}
+                          title={job.title}
                           style={{
                             fontWeight: 600,
                             color: "var(--text-main)",
                             textDecoration: "none",
                             fontSize: "0.9375rem",
+                            display: "-webkit-box",
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: "vertical",
+                            overflow: "hidden",
+                            maxWidth: "360px",
                           }}
                           onMouseEnter={(e) => (e.currentTarget.style.color = "var(--primary)")}
                           onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-main)")}
@@ -216,10 +241,21 @@ export default function MyJobs() {
                           {job.title}
                         </Link>
                         <div style={{ display: "flex", alignItems: "center", gap: "0.3rem", fontSize: "0.8125rem", color: "var(--text-muted)", marginTop: "0.2rem" }}>
-                          <Building2 size={12} />
-                          <span>{job.Company?.name || "Company"}</span>
+                          <Building2 size={12} style={{ flexShrink: 0 }} />
+                          <span
+                            title={job.Company?.name || "Company"}
+                            style={{
+                              maxWidth: "180px",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                              display: "inline-block",
+                            }}
+                          >
+                            {job.Company?.name || "Company"}
+                          </span>
                           <span>•</span>
-                          <MapPin size={12} />
+                          <MapPin size={12} style={{ flexShrink: 0 }} />
                           <span>{job.location}</span>
                           {job.is_remote && <span style={{ color: "var(--primary)" }}>(Remote)</span>}
                         </div>

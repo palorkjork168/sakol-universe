@@ -119,7 +119,7 @@ async function runTests() {
     method: "POST",
     headers: { Authorization: `Bearer ${tokenA}` },
     body: JSON.stringify({
-      name: `Innovate Tech ${timestamp}`,
+      name: "Innovate Tech",
       description: "Leading AI and Cloud firm.",
       city: "Phnom Penh",
       country: "Cambodia",
@@ -132,7 +132,7 @@ async function runTests() {
     headers: { Authorization: `Bearer ${tokenA}` },
     body: JSON.stringify({
       company_id: companyA.id,
-      title: `Senior Full Stack Architect ${timestamp}`,
+      title: "Senior Full Stack Architect",
       description: "Looking for an exceptional architect with 5+ years experience building cloud applications.",
       employment_type: "FULL_TIME",
       location: "Phnom Penh",

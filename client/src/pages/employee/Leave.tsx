@@ -1,26 +1,62 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../../services/api";
-import { Calendar as CalendarIcon, Clock, CheckCircle2, XCircle, AlertCircle, Loader2 } from "lucide-react";
+import {
+  Calendar as CalendarIcon,
+  Plus,
+  CalendarCheck,
+  FileQuestion,
+  AlertCircle,
+  RefreshCw,
+} from "lucide-react";
 import RequestLeaveModal from "../../components/employee/RequestLeaveModal";
+import StatusBadge from "../../components/common/StatusBadge";
+import EmptyState from "../../components/common/EmptyState";
+import BackButton from "../../components/common/BackButton";
+import { SkeletonStatCard, SkeletonTableRow } from "../../components/common/Skeleton";
+import { useToast } from "../../contexts/ToastContext";
+
+type LeaveTab = "ALL" | "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
 
 export default function Leave() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<LeaveTab>("ALL");
 
-  const { data: balance, isLoading: balanceLoading } = useQuery<any[]>({
+  const {
+    data: balance = [],
+    isLoading: balanceLoading,
+    isError: balanceError,
+    refetch: refetchBalance,
+  } = useQuery<any[]>({
     queryKey: ["leaveBalance"],
     queryFn: async () => {
       const res = await api.get("/leave/balance");
       return res.data.data;
     },
+    staleTime: 60 * 1000,
+    retry: (failureCount, error: any) => {
+      if (error?.response?.status === 404) return false;
+      return failureCount < 2;
+    },
   });
 
-  const { data: requests, isLoading: requestsLoading } = useQuery<any[]>({
+  const {
+    data: requests = [],
+    isLoading: requestsLoading,
+    isError: requestsError,
+    refetch: refetchRequests,
+  } = useQuery<any[]>({
     queryKey: ["myLeaveRequests"],
     queryFn: async () => {
       const res = await api.get("/leave/my");
       return res.data.data;
+    },
+    staleTime: 60 * 1000,
+    retry: (failureCount, error: any) => {
+      if (error?.response?.status === 404) return false;
+      return failureCount < 2;
     },
   });
 
@@ -29,113 +65,342 @@ export default function Leave() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["myLeaveRequests"] });
       queryClient.invalidateQueries({ queryKey: ["leaveBalance"] });
+      toast.success("Leave request cancelled successfully");
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || "Failed to cancel request");
     },
   });
 
-  if (balanceLoading || requestsLoading) {
-    return <div className="dashboard-container" style={{ textAlign: "center", padding: "4rem" }}><Loader2 className="animate-spin" /></div>;
-  }
+  const filteredRequests = useMemo(() => {
+    if (activeTab === "ALL") return requests;
+    return requests.filter((r) => r.status === activeTab);
+  }, [requests, activeTab]);
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "APPROVED": return <CheckCircle2 size={16} className="text-emerald-600" />;
-      case "REJECTED": return <XCircle size={16} className="text-rose-600" />;
-      case "PENDING": return <Clock size={16} className="text-amber-600" />;
-      default: return <AlertCircle size={16} className="text-slate-500" />;
+  const formatDates = (startStr: string, endStr: string) => {
+    const s = new Date(startStr);
+    const e = new Date(endStr);
+    const options: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", year: "numeric" };
+    if (startStr === endStr) {
+      return s.toLocaleDateString(undefined, options);
     }
+    return `${s.toLocaleDateString(undefined, { month: "short", day: "numeric" })} - ${e.toLocaleDateString(undefined, options)}`;
   };
 
-  const getStatusBadgeClass = (status: string) => {
-    switch (status) {
-      case "APPROVED": return "badge-primary";
-      case "REJECTED": return "badge-danger";
-      case "PENDING": return "badge-warning";
-      default: return "badge-gray";
-    }
-  };
+  const tabs: { id: LeaveTab; label: string }[] = [
+    { id: "ALL", label: `All (${requests.length})` },
+    { id: "PENDING", label: `Pending (${requests.filter((r) => r.status === "PENDING").length})` },
+    { id: "APPROVED", label: `Approved (${requests.filter((r) => r.status === "APPROVED").length})` },
+    { id: "REJECTED", label: `Rejected (${requests.filter((r) => r.status === "REJECTED").length})` },
+    { id: "CANCELLED", label: `Cancelled (${requests.filter((r) => r.status === "CANCELLED").length})` },
+  ];
 
   return (
-    <div className="dashboard-container">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem", flexWrap: "wrap", gap: "1rem" }}>
+    <div className="page-container fade-in">
+      {/* Back Navigation */}
+      <BackButton label="Back to Dashboard" fallback="/employee/dashboard" />
+
+      {/* Page Header - Renders immediately */}
+      <div className="page-header">
         <div>
-          <h1 className="dashboard-title">My Leave</h1>
-          <p className="dashboard-subtitle">Manage your time off requests and view your balances.</p>
+          <h1 className="page-title">Time Off</h1>
+          <p className="page-subtitle">Manage your leave requests and review your balance allowances.</p>
         </div>
-        <button onClick={() => setIsModalOpen(true)} className="btn btn-primary">
-          <CalendarIcon size={18} /> Request Time Off
+        <button
+          type="button"
+          onClick={() => setIsModalOpen(true)}
+          className="btn btn-primary"
+        >
+          <Plus size={16} /> Request Time Off
         </button>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: "1rem", marginBottom: "2.5rem" }}>
-        {balance?.map((bal) => (
-          <div key={bal.leave_type_id} className="card" style={{ padding: "1.5rem" }}>
-            <h3 style={{ margin: "0 0 1rem", fontSize: "1rem", color: "var(--text-secondary)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              {bal.name}
-            </h3>
-            <div style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text-primary)", marginBottom: "0.5rem", display: "flex", alignItems: "baseline", gap: "0.25rem" }}>
-              {bal.remaining_days !== null ? bal.remaining_days : "âˆž"} <span style={{ fontSize: "1rem", color: "var(--text-muted)", fontWeight: 400 }}>days left</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.875rem", color: "var(--text-muted)" }}>
-              <span>Allowance: {bal.default_days !== null ? bal.default_days : "Unlimited"}</span>
-              <span>Used: {bal.used_days}</span>
-            </div>
+      {/* Leave Balances Section */}
+      <div style={{ marginBottom: "2.5rem" }}>
+        <h2 style={{ fontSize: "1.125rem", fontWeight: 700, color: "var(--color-text)", marginBottom: "1rem" }}>
+          Leave Balances
+        </h2>
+
+        {balanceLoading ? (
+          <div className="card-grid">
+            <SkeletonStatCard />
+            <SkeletonStatCard />
+            <SkeletonStatCard />
           </div>
-        ))}
-        {balance?.length === 0 && (
-          <div style={{ gridColumn: "1 / -1", padding: "2rem", textAlign: "center", border: "1px dashed var(--border)", borderRadius: "var(--radius-md)", color: "var(--text-muted)" }}>
-            No leave balances available.
+        ) : balanceError ? (
+          <div
+            className="card"
+            style={{
+              padding: "1.25rem 1.5rem",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              backgroundColor: "var(--color-danger-soft)",
+              color: "var(--color-danger-text)",
+              border: "1px solid var(--color-danger-border)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+              <AlertCircle size={20} />
+              <span>We couldn't load your leave balances. Please try again.</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => refetchBalance()}
+              className="btn btn-sm btn-secondary"
+              style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem" }}
+            >
+              <RefreshCw size={14} /> Retry
+            </button>
+          </div>
+        ) : balance.length === 0 ? (
+          <EmptyState
+            icon={CalendarCheck}
+            title="No leave policies available"
+            description="Your company has not configured active leave types yet. Please contact your employer or HR team."
+          />
+        ) : (
+          <div className="card-grid">
+            {balance.map((bal) => {
+              const hasAllowance = bal.default_days !== null;
+              const remaining = hasAllowance ? (bal.remaining_days ?? bal.default_days) : "Unlimited";
+              const percentUsed = hasAllowance && bal.default_days > 0
+                ? Math.min(100, Math.round(((bal.used_days || 0) / bal.default_days) * 100))
+                : 0;
+
+              return (
+                <div key={bal.leave_type_id} className="card" style={{ padding: "1.5rem" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem" }}>
+                    <h3 style={{ fontSize: "1rem", fontWeight: 600, color: "var(--color-text)", margin: 0 }}>
+                      {bal.name}
+                    </h3>
+                    <span className="badge badge-neutral">
+                      {bal.paid ? "Paid" : "Unpaid"}
+                    </span>
+                  </div>
+
+                  <div style={{ display: "flex", alignItems: "baseline", gap: "0.375rem", marginBottom: "0.5rem" }}>
+                    <span style={{ fontSize: "2rem", fontWeight: 800, color: "var(--color-text)", lineHeight: 1 }}>
+                      {remaining}
+                    </span>
+                    <span style={{ fontSize: "0.875rem", color: "var(--color-text-secondary)" }}>
+                      {hasAllowance ? "days remaining" : ""}
+                    </span>
+                  </div>
+
+                  {hasAllowance ? (
+                    <>
+                      {/* Progress Bar */}
+                      <div
+                        style={{
+                          width: "100%",
+                          height: "6px",
+                          backgroundColor: "var(--color-surface-muted)",
+                          borderRadius: "var(--radius-full)",
+                          overflow: "hidden",
+                          margin: "0.75rem 0",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: `${percentUsed}%`,
+                            height: "100%",
+                            backgroundColor: percentUsed > 85 ? "var(--color-danger)" : "var(--color-primary)",
+                            borderRadius: "var(--radius-full)",
+                            transition: "width var(--transition-base)",
+                          }}
+                        />
+                      </div>
+
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8125rem", color: "var(--color-text-secondary)" }}>
+                        <span>Entitlement: <strong>{bal.default_days}d</strong></span>
+                        <span>Used: <strong>{bal.used_days || 0}d</strong></span>
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ fontSize: "0.8125rem", color: "var(--color-text-secondary)", marginTop: "0.5rem" }}>
+                      Used: <strong>{bal.used_days || 0} days</strong>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
 
-      <h2 style={{ fontSize: "1.25rem", fontWeight: 600, marginBottom: "1rem" }}>Leave History</h2>
-      
-      {requests?.length === 0 ? (
-        <div className="card" style={{ padding: "3rem", textAlign: "center", color: "var(--text-muted)" }}>
-          You haven't requested any time off yet.
-        </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-          {requests?.map((req) => {
-             const start = new Date(req.start_date);
-             const end = new Date(req.end_date);
-             const days = Math.ceil(Math.abs(end.getTime() - start.getTime()) / (1000 * 3600 * 24)) + 1;
-             
-             return (
-              <div key={req.id} className="card" style={{ padding: "1.25rem", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
-                <div style={{ flex: 1, minWidth: "250px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
-                    <h4 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 600 }}>{req.leaveType?.name}</h4>
-                    <span className={`badge ${getStatusBadgeClass(req.status)}`} style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", padding: "0.25rem 0.5rem", fontSize: "0.75rem" }}>
-                      {getStatusIcon(req.status)} {req.status}
-                    </span>
-                  </div>
-                  <div style={{ color: "var(--text-secondary)", fontSize: "0.875rem", marginBottom: "0.5rem" }}>
-                    {start.toLocaleDateString()} - {end.toLocaleDateString()} ({days} {days === 1 ? 'day' : 'days'})
-                  </div>
-                  <div style={{ color: "var(--text-muted)", fontSize: "0.875rem" }}>
-                    <strong>Reason:</strong> {req.reason}
-                  </div>
-                  {req.review_note && (
-                    <div style={{ marginTop: "0.5rem", padding: "0.5rem 0.75rem", backgroundColor: "var(--bg-secondary)", borderLeft: "3px solid var(--border)", fontSize: "0.875rem", color: "var(--text-secondary)" }}>
-                      <strong>Note:</strong> {req.review_note}
-                    </div>
-                  )}
-                </div>
-                {req.status === "PENDING" && (
-                  <div>
-                    <button onClick={() => { if(confirm("Are you sure you want to cancel this request?")) cancelMut.mutate(req.id); }} disabled={cancelMut.isPending} className="btn btn-secondary btn-sm" style={{ color: "var(--danger)" }}>
-                      Cancel Request
-                    </button>
-                  </div>
-                )}
-              </div>
-             );
-          })}
-        </div>
-      )}
+      {/* Leave Requests Section */}
+      <div style={{ marginTop: "2.5rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "1rem" }}>
+          <h2 style={{ fontSize: "1.125rem", fontWeight: 700, color: "var(--color-text)", margin: 0 }}>
+            Request History
+          </h2>
 
-      {isModalOpen && <RequestLeaveModal onClose={() => setIsModalOpen(false)} balance={balance || []} />}
+          {/* Filter Tabs */}
+          <div
+            style={{
+              display: "inline-flex",
+              backgroundColor: "var(--color-surface-muted)",
+              padding: "3px",
+              borderRadius: "var(--radius-md)",
+              gap: "2px",
+              flexWrap: "wrap",
+            }}
+          >
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                style={{
+                  border: "none",
+                  padding: "0.375rem 0.75rem",
+                  fontSize: "0.8125rem",
+                  fontWeight: activeTab === tab.id ? 600 : 500,
+                  borderRadius: "var(--radius-sm)",
+                  cursor: "pointer",
+                  backgroundColor: activeTab === tab.id ? "var(--color-surface)" : "transparent",
+                  color: activeTab === tab.id ? "var(--color-text)" : "var(--color-text-secondary)",
+                  boxShadow: activeTab === tab.id ? "var(--shadow-xs)" : "none",
+                  transition: "all var(--transition-fast)",
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {requestsLoading ? (
+          <div className="table-container">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Leave Type</th>
+                  <th>Dates</th>
+                  <th>Duration</th>
+                  <th>Status</th>
+                  <th>Reason</th>
+                  <th>Review Note</th>
+                  <th style={{ textAlign: "right" }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <SkeletonTableRow cols={7} />
+                <SkeletonTableRow cols={7} />
+                <SkeletonTableRow cols={7} />
+              </tbody>
+            </table>
+          </div>
+        ) : requestsError ? (
+          <div
+            className="card"
+            style={{
+              padding: "1.25rem 1.5rem",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              backgroundColor: "var(--color-danger-soft)",
+              color: "var(--color-danger-text)",
+              border: "1px solid var(--color-danger-border)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+              <AlertCircle size={20} />
+              <span>We couldn't load your leave requests. Please try again.</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => refetchRequests()}
+              className="btn btn-sm btn-secondary"
+              style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem" }}
+            >
+              <RefreshCw size={14} /> Retry
+            </button>
+          </div>
+        ) : filteredRequests.length === 0 ? (
+          <EmptyState
+            icon={FileQuestion}
+            title={activeTab === "ALL" ? "No time off requests yet" : `No ${activeTab.toLowerCase()} requests`}
+            description="When you submit a leave request, you will be able to track approvals and notes here."
+            action={activeTab === "ALL" ? { label: "Request Time Off", onClick: () => setIsModalOpen(true), icon: Plus } : undefined}
+          />
+        ) : (
+          <div className="table-container">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Leave Type</th>
+                  <th>Dates</th>
+                  <th>Duration</th>
+                  <th>Status</th>
+                  <th>Reason</th>
+                  <th>Review Note</th>
+                  <th style={{ textAlign: "right" }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRequests.map((req) => (
+                  <tr key={req.id}>
+                    <td>
+                      <strong style={{ color: "var(--color-text)" }}>
+                        {req.LeaveType?.name || "Time Off"}
+                      </strong>
+                    </td>
+                    <td>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                        <CalendarIcon size={14} style={{ color: "var(--color-text-muted)" }} />
+                        <span>{formatDates(req.start_date, req.end_date)}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <strong>{req.days_count}</strong> {req.days_count === 1 ? "day" : "days"}
+                    </td>
+                    <td>
+                      <StatusBadge status={req.status} />
+                    </td>
+                    <td style={{ maxWidth: "220px", color: "var(--color-text-secondary)" }}>
+                      <span style={{ display: "block", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }} title={req.reason}>
+                        {req.reason || "—"}
+                      </span>
+                    </td>
+                    <td style={{ maxWidth: "200px", color: "var(--color-text-muted)", fontSize: "0.8125rem" }}>
+                      <span style={{ display: "block", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }} title={req.review_note}>
+                        {req.review_note || "—"}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: "right" }}>
+                      {req.status === "PENDING" && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm("Are you sure you want to cancel this leave request?")) {
+                              cancelMut.mutate(req.id);
+                            }
+                          }}
+                          disabled={cancelMut.isPending}
+                          className="btn btn-sm btn-ghost"
+                          style={{ color: "var(--color-danger)" }}
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Request Leave Modal */}
+      {isModalOpen && (
+        <RequestLeaveModal
+          balance={balance}
+          onClose={() => setIsModalOpen(false)}
+        />
+      )}
     </div>
   );
 }

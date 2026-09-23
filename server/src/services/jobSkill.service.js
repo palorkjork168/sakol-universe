@@ -3,6 +3,7 @@ const {
   JobSkill,
   Company,
 } = require("../models");
+const authorizationService = require("./authorization.service");
 
 const addJobSkill = async (
   jobId,
@@ -28,11 +29,13 @@ const addJobSkill = async (
     throw error;
   }
 
-  const userRoles = user.Roles.map((role) => role.name);
-  const isAdmin = userRoles.includes("ADMIN");
-  const isOwner = job.Company && job.Company.owner_id === user.id;
+  const hasPerm = await authorizationService.hasCompanyPermission(
+    user,
+    job.Company.id,
+    "jobs.update"
+  );
 
-  if (!isAdmin && !isOwner) {
+  if (!hasPerm) {
     const error = new Error(
       "You do not have permission to manage skills for this job"
     );
@@ -89,11 +92,13 @@ const deleteJobSkill = async (
     throw error;
   }
 
-  const userRoles = user.Roles.map((role) => role.name);
-  const isAdmin = userRoles.includes("ADMIN");
-  const isOwner = job.Company && job.Company.owner_id === user.id;
+  const hasPerm = await authorizationService.hasCompanyPermission(
+    user,
+    job.Company.id,
+    "jobs.update"
+  );
 
-  if (!isAdmin && !isOwner) {
+  if (!hasPerm) {
     const error = new Error(
       "You do not have permission to manage skills for this job"
     );

@@ -11,12 +11,12 @@ import {
   PlusCircle,
   Building2,
   ArrowRight,
-  Loader2,
   AlertTriangle,
   Eye,
   FileText,
   Calendar,
 } from "lucide-react";
+import { Skeleton, SkeletonStatCard } from "../../components/common/Skeleton";
 
 export default function EmployerDashboard() {
   const { user } = useAuth();
@@ -27,6 +27,7 @@ export default function EmployerDashboard() {
       const res = await api.get<GetMyCompaniesResponse>("/companies/my");
       return res.data.data.companies;
     },
+    staleTime: 60 * 1000,
   });
 
   const jobsQuery = useQuery<Job[]>({
@@ -35,6 +36,7 @@ export default function EmployerDashboard() {
       const res = await api.get<GetMyJobsResponse>("/jobs/my");
       return res.data.data.jobs;
     },
+    staleTime: 60 * 1000,
   });
 
   const interviewsQuery = useQuery<any[]>({
@@ -43,6 +45,7 @@ export default function EmployerDashboard() {
       const res = await api.get("/interviews/employer/my?upcoming=true");
       return res.data.data.interviews;
     },
+    staleTime: 60 * 1000,
   });
 
   const upcomingInterviews = interviewsQuery.data || [];
@@ -86,17 +89,6 @@ export default function EmployerDashboard() {
         return <span className="badge badge-gray">{status}</span>;
     }
   };
-
-  if (isInitialLoading) {
-    return (
-      <div className="dashboard-container" style={{ textAlign: "center", padding: "4rem 1.5rem" }}>
-        <Loader2 className="animate-spin" size={24} style={{ color: "var(--primary)" }} />
-        <div style={{ marginTop: "0.5rem", color: "var(--text-muted)", fontSize: "0.875rem" }}>
-          Loading your recruitment dashboard...
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="dashboard-container">
@@ -154,21 +146,29 @@ export default function EmployerDashboard() {
       )}
 
       {/* Summary Cards */}
-      <div className="summary-cards" style={{ marginBottom: "2.5rem" }}>
-        {/* Total Jobs */}
-        <Link to="/employer/jobs" className="card" style={{ textDecoration: "none", transition: "transform 0.2s" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span className="card-title">Total Postings</span>
-            <div style={{ width: "36px", height: "36px", borderRadius: "50%", backgroundColor: "rgba(37, 99, 235, 0.1)", color: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Briefcase size={18} />
+      {isInitialLoading ? (
+        <div className="summary-cards" style={{ marginBottom: "2.5rem" }}>
+          <SkeletonStatCard />
+          <SkeletonStatCard />
+          <SkeletonStatCard />
+          <SkeletonStatCard />
+        </div>
+      ) : (
+        <div className="summary-cards" style={{ marginBottom: "2.5rem" }}>
+          {/* Total Jobs */}
+          <Link to="/employer/jobs" className="card" style={{ textDecoration: "none", transition: "transform 0.2s" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span className="card-title">Total Postings</span>
+              <div style={{ width: "36px", height: "36px", borderRadius: "50%", backgroundColor: "rgba(37, 99, 235, 0.1)", color: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Briefcase size={18} />
+              </div>
             </div>
-          </div>
-          <p className="card-value">{totalJobs}</p>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontSize: "0.8125rem", color: "var(--primary)", marginTop: "0.5rem", fontWeight: 500 }}>
-            <span>Manage all listings</span>
-            <ArrowRight size={13} />
-          </div>
-        </Link>
+            <p className="card-value">{totalJobs}</p>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontSize: "0.8125rem", color: "var(--primary)", marginTop: "0.5rem", fontWeight: 500 }}>
+              <span>Manage all listings</span>
+              <ArrowRight size={13} />
+            </div>
+          </Link>
 
         {/* Published Jobs */}
         <Link to="/employer/jobs" className="card" style={{ textDecoration: "none", transition: "transform 0.2s" }}>
@@ -215,6 +215,7 @@ export default function EmployerDashboard() {
           </div>
         </Link>
       </div>
+      )}
 
       {/* Upcoming Interviews Banner/Card */}
       {upcomingInterviews.length > 0 && (
@@ -295,7 +296,13 @@ export default function EmployerDashboard() {
             </Link>
           </div>
 
-          {jobs.length === 0 ? (
+          {jobsQuery.isLoading ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              <Skeleton height="56px" borderRadius="var(--radius-md)" />
+              <Skeleton height="56px" borderRadius="var(--radius-md)" />
+              <Skeleton height="56px" borderRadius="var(--radius-md)" />
+            </div>
+          ) : jobs.length === 0 ? (
             <div style={{ textAlign: "center", padding: "2.5rem 1rem", backgroundColor: "var(--bg-color)", borderRadius: "var(--radius-md)" }}>
               <Briefcase size={28} style={{ color: "var(--text-light)", marginBottom: "0.5rem" }} />
               <p style={{ margin: "0 0 0.75rem 0", fontSize: "0.875rem", color: "var(--text-muted)" }}>
@@ -365,7 +372,13 @@ export default function EmployerDashboard() {
             </Link>
           </div>
 
-          {jobs.filter((j) => (j.Applications?.length || 0) > 0).length === 0 ? (
+          {jobsQuery.isLoading ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              <Skeleton height="56px" borderRadius="var(--radius-md)" />
+              <Skeleton height="56px" borderRadius="var(--radius-md)" />
+              <Skeleton height="56px" borderRadius="var(--radius-md)" />
+            </div>
+          ) : jobs.filter((j) => (j.Applications?.length || 0) > 0).length === 0 ? (
             <div style={{ textAlign: "center", padding: "2.5rem 1rem", backgroundColor: "var(--bg-color)", borderRadius: "var(--radius-md)" }}>
               <FileText size={28} style={{ color: "var(--text-light)", marginBottom: "0.5rem" }} />
               <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.875rem", color: "var(--text-muted)" }}>

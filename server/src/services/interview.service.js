@@ -7,7 +7,11 @@ const {
   Company,
   User,
   UserProfile,
+  CompanyUserRole,
 } = require("../models");
+const authorizationService = require("./authorization.service");
+const notificationService = require("./notification.service");
+const NOTIFICATION_TYPES = require("../constants/notificationTypes");
 
 const createInterview = async (user, interviewData) => {
   const application = await Application.findByPk(
@@ -33,12 +37,13 @@ const createInterview = async (user, interviewData) => {
     throw error;
   }
 
-  const userRoles = (user?.Roles || []).map((r) => r.name);
-  const isAdmin = userRoles.includes("ADMIN");
-  const isOwner =
-    application.Job?.Company?.owner_id === user.id;
+  const hasPerm = await authorizationService.hasCompanyPermission(
+    user,
+    application.Job?.Company?.id,
+    "interviews.schedule"
+  );
 
-  if (!isAdmin && !isOwner) {
+  if (!hasPerm) {
     const error = new Error(
       "You do not have permission to schedule an interview for this application"
     );
@@ -67,6 +72,23 @@ const createInterview = async (user, interviewData) => {
         { transaction }
       );
     }
+
+    // Notify candidate about scheduled interview
+    const jobTitle = application.Job?.title || "your application";
+    await notificationService.notifyUser({
+      userId: application.user_id,
+      type: NOTIFICATION_TYPES.INTERVIEW_SCHEDULED,
+      title: "Interview Scheduled",
+      message: `Your interview for ${jobTitle} has been scheduled for ${new Date(interviewData.scheduled_at).toLocaleString()}.`,
+      link: "/job-seeker/interviews",
+      metadata: {
+        interview_id: interview.id,
+        application_id: application.id,
+        job_id: application.Job?.id,
+      },
+      transaction,
+      deduplicationKey: `interview_sched_${interview.id}`,
+    });
 
     await transaction.commit();
 
@@ -145,14 +167,19 @@ const getInterviewById = async (interviewId, user) => {
     throw error;
   }
 
-  const userRoles = (user?.Roles || []).map((r) => r.name);
-  const isAdmin = userRoles.includes("ADMIN");
-  const isOwner =
-    interview.application?.Job?.Company?.owner_id === user.id;
   const isCandidate =
     interview.application?.user_id === user.id;
 
-  if (!isAdmin && !isOwner && !isCandidate) {
+  let hasCompanyPerm = false;
+  if (!isCandidate) {
+    hasCompanyPerm = await authorizationService.hasCompanyPermission(
+      user,
+      interview.application?.Job?.Company?.id,
+      "interviews.view"
+    );
+  }
+
+  if (!isCandidate && !hasCompanyPerm) {
     const error = new Error(
       "You do not have permission to view this interview"
     );
@@ -221,12 +248,25 @@ const getApplicationInterviews = async (applicationId, user) => {
 };
 
 const getEmployerInterviews = async (user, query = {}) => {
-  const userRoles = (user?.Roles || []).map((r) => r.name);
-  const isAdmin = userRoles.includes("ADMIN");
+  const isAdmin = authorizationService.isAdmin(user);
 
-  const companyWhere = isAdmin
-    ? {}
-    : { owner_id: user.id };
+  let companyWhere;
+  if (isAdmin) {
+    companyWhere = undefined;
+  } else {
+    const assignedCompanyRoles = await CompanyUserRole.findAll({
+      where: { user_id: user.id },
+      attributes: ["company_id"],
+    });
+    const companyIds = assignedCompanyRoles.map((cr) => cr.company_id);
+    if (companyIds.length > 0) {
+      companyWhere = {
+        [Op.or]: [{ owner_id: user.id }, { id: companyIds }],
+      };
+    } else {
+      companyWhere = { owner_id: user.id };
+    }
+  }
 
   const interviewWhere = {};
 
@@ -256,10 +296,7 @@ const getEmployerInterviews = async (user, query = {}) => {
               {
                 model: Company,
                 required: true,
-                where:
-                  Object.keys(companyWhere).length > 0
-                    ? companyWhere
-                    : undefined,
+                where: companyWhere,
               },
             ],
           },
@@ -365,12 +402,13 @@ const updateInterview = async (
     throw error;
   }
 
-  const userRoles = (user?.Roles || []).map((r) => r.name);
-  const isAdmin = userRoles.includes("ADMIN");
-  const isOwner =
-    interview.application?.Job?.Company?.owner_id === user.id;
+  const hasPerm = await authorizationService.hasCompanyPermission(
+    user,
+    interview.application?.Job?.Company?.id,
+    "interviews.update"
+  );
 
-  if (!isAdmin && !isOwner) {
+  if (!hasPerm) {
     const error = new Error(
       "You do not have permission to update this interview"
     );
@@ -394,7 +432,32 @@ const updateInterview = async (
     throw error;
   }
 
+  const oldScheduledAt = interview.scheduled_at ? new Date(interview.scheduled_at).getTime() : null;
+  const newScheduledAt = updateData.scheduled_at ? new Date(updateData.scheduled_at).getTime() : null;
+  const isRescheduled = Boolean(newScheduledAt && oldScheduledAt !== newScheduledAt);
+
   await interview.update(updateData);
+
+  if (isRescheduled) {
+    try {
+      const jobTitle = interview.application?.Job?.title || "your application";
+      await notificationService.notifyUser({
+        userId: interview.application?.user_id,
+        type: NOTIFICATION_TYPES.INTERVIEW_RESCHEDULED,
+        title: "Interview Rescheduled",
+        message: `Your interview for ${jobTitle} has been rescheduled to ${new Date(updateData.scheduled_at).toLocaleString()}.`,
+        link: "/job-seeker/interviews",
+        metadata: {
+          interview_id: interview.id,
+          application_id: interview.application_id,
+          scheduled_at: updateData.scheduled_at,
+        },
+        deduplicationKey: `interview_resched_${interview.id}_${updateData.scheduled_at}`,
+      });
+    } catch (err) {
+      console.error("Failed to send reschedule notification:", err);
+    }
+  }
 
   return interview;
 };
@@ -421,12 +484,13 @@ const cancelInterview = async (interviewId, user) => {
     throw error;
   }
 
-  const userRoles = (user?.Roles || []).map((r) => r.name);
-  const isAdmin = userRoles.includes("ADMIN");
-  const isOwner =
-    interview.application?.Job?.Company?.owner_id === user.id;
+  const hasPerm = await authorizationService.hasCompanyPermission(
+    user,
+    interview.application?.Job?.Company?.id,
+    "interviews.cancel"
+  );
 
-  if (!isAdmin && !isOwner) {
+  if (!hasPerm) {
     const error = new Error(
       "You do not have permission to cancel this interview"
     );
@@ -447,6 +511,24 @@ const cancelInterview = async (interviewId, user) => {
   }
 
   await interview.update({ status: "CANCELLED" });
+
+  try {
+    const jobTitle = interview.application?.Job?.title || "your application";
+    await notificationService.notifyUser({
+      userId: interview.application?.user_id,
+      type: NOTIFICATION_TYPES.INTERVIEW_CANCELLED,
+      title: "Interview Cancelled",
+      message: `Your interview for ${jobTitle} has been cancelled.`,
+      link: "/job-seeker/interviews",
+      metadata: {
+        interview_id: interview.id,
+        application_id: interview.application_id,
+      },
+      deduplicationKey: `interview_cancelled_${interview.id}`,
+    });
+  } catch (err) {
+    console.error("Failed to send interview cancellation notification:", err);
+  }
 
   return interview;
 };
@@ -477,12 +559,13 @@ const completeInterview = async (
     throw error;
   }
 
-  const userRoles = (user?.Roles || []).map((r) => r.name);
-  const isAdmin = userRoles.includes("ADMIN");
-  const isOwner =
-    interview.application?.Job?.Company?.owner_id === user.id;
+  const hasPerm = await authorizationService.hasCompanyPermission(
+    user,
+    interview.application?.Job?.Company?.id,
+    "interviews.update"
+  );
 
-  if (!isAdmin && !isOwner) {
+  if (!hasPerm) {
     const error = new Error(
       "You do not have permission to complete this interview"
     );

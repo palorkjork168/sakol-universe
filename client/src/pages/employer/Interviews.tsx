@@ -13,13 +13,14 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
-  Loader2,
   Users,
   ExternalLink,
   Edit2,
   X,
   PlusCircle,
 } from "lucide-react";
+import BackButton from "../../components/common/BackButton";
+import { SkeletonTableRow } from "../../components/common/Skeleton";
 
 export default function Interviews() {
   const queryClient = useQueryClient();
@@ -47,6 +48,7 @@ export default function Interviews() {
       const res = await api.get("/interviews/employer/my");
       return res.data.data.interviews;
     },
+    staleTime: 60 * 1000,
   });
 
   // Edit mutation
@@ -203,6 +205,9 @@ export default function Interviews() {
 
   return (
     <div className="dashboard-container">
+      {/* Back Navigation */}
+      <BackButton label="Back to Dashboard" fallback="/employer/dashboard" />
+
       {/* Header */}
       <div className="dashboard-header" style={{ marginBottom: "1.5rem" }}>
         <div>
@@ -238,11 +243,24 @@ export default function Interviews() {
       </div>
 
       {isLoading && (
-        <div style={{ textAlign: "center", padding: "4rem 1.5rem" }}>
-          <Loader2 className="animate-spin" size={24} style={{ color: "var(--primary)" }} />
-          <div style={{ marginTop: "0.5rem", color: "var(--text-muted)", fontSize: "0.875rem" }}>
-            Loading scheduled interviews...
-          </div>
+        <div className="table-container">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Candidate & Job</th>
+                <th>Scheduled Date & Time</th>
+                <th>Format</th>
+                <th>Meeting Details</th>
+                <th>Status</th>
+                <th style={{ textAlign: "right" }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <SkeletonTableRow cols={6} />
+              <SkeletonTableRow cols={6} />
+              <SkeletonTableRow cols={6} />
+            </tbody>
+          </table>
         </div>
       )}
 

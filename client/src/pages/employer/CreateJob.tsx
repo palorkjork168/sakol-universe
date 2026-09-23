@@ -7,8 +7,8 @@ import {
   Building2,
   AlertCircle,
   Loader2,
-  ArrowLeft,
 } from "lucide-react";
+import BackButton from "../../components/common/BackButton";
 
 export default function CreateJob() {
   const navigate = useNavigate();
@@ -128,21 +128,7 @@ export default function CreateJob() {
     <div className="dashboard-container">
       {/* Header */}
       <div style={{ marginBottom: "1.5rem" }}>
-        <Link
-          to="/employer/jobs"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "0.35rem",
-            color: "var(--text-muted)",
-            fontSize: "0.8125rem",
-            textDecoration: "none",
-            marginBottom: "0.75rem",
-          }}
-        >
-          <ArrowLeft size={14} />
-          <span>Back to My Jobs</span>
-        </Link>
+        <BackButton label="Back to My Jobs" fallback="/employer/jobs" />
         <h1 className="dashboard-title">Post a New Job</h1>
         <p className="dashboard-subtitle">
           Define candidate criteria, compensation, and responsibilities for your opening

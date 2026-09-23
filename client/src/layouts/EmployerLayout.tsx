@@ -11,7 +11,9 @@ import {
   X,
   LayoutDashboard,
   Calendar,
+  BarChart3,
 } from "lucide-react";
+import NotificationBell from "../components/notifications/NotificationBell";
 
 export default function EmployerLayout() {
   const { user, logout } = useAuth();
@@ -20,7 +22,9 @@ export default function EmployerLayout() {
 
   const navItems = [
     { label: "Dashboard", path: "/employer/dashboard", icon: LayoutDashboard },
+    { label: "Analytics", path: "/employer/analytics", icon: BarChart3 },
     { label: "Company", path: "/employer/company", icon: Building2 },
+    { label: "Team & Roles", path: "/employer/team", icon: Users },
     { label: "My Jobs", path: "/employer/jobs", icon: Briefcase },
     { label: "Applicants", path: "/employer/applicants", icon: Users },
     { label: "Interviews", path: "/employer/interviews", icon: Calendar },
@@ -28,6 +32,7 @@ export default function EmployerLayout() {
     { label: "Leave Requests", path: "/employer/leave-requests", icon: Calendar },
     { label: "Browse Jobs", path: "/jobs", icon: Search },
   ];
+
 
   const isActive = (path: string) => {
     if (path === "/employer/dashboard" && location.pathname === "/employer/dashboard") return true;
@@ -79,6 +84,7 @@ export default function EmployerLayout() {
           {/* User Section */}
           <div className="nav-actions">
             <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+              <NotificationBell />
               <div
                 style={{
                   width: "34px",

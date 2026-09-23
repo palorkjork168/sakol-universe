@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import api from "../../services/api";
 import type { GetJobsResponse, Job } from "../../types/job";
 import JobCard from "../../components/public/JobCard";
+import EmptyState from "../../components/common/EmptyState";
 import {
   Search,
   MapPin,
@@ -175,31 +176,19 @@ export default function Home() {
             ))}
           </div>
         ) : isError ? (
-          <div className="card empty-state" style={{ padding: "3rem" }}>
-            <div className="empty-state-icon" style={{ backgroundColor: "var(--danger-bg)", color: "var(--danger)" }}>
-              <AlertCircle size={28} />
-            </div>
-            <h3>Unable to load latest jobs</h3>
-            <p style={{ color: "var(--text-muted)", marginBottom: "1.5rem" }}>
-              Please verify your server connection and try again.
-            </p>
-            <button onClick={() => refetch()} className="btn btn-secondary">
-              Try Again
-            </button>
-          </div>
+          <EmptyState
+            icon={AlertCircle}
+            title="Unable to load latest jobs"
+            description="Please verify your server connection and try again."
+            action={{ label: "Try Again", onClick: () => refetch() }}
+          />
         ) : !data || data.length === 0 ? (
-          <div className="card empty-state" style={{ padding: "3rem" }}>
-            <div className="empty-state-icon">
-              <Briefcase size={28} />
-            </div>
-            <h3>No jobs published yet</h3>
-            <p style={{ color: "var(--text-muted)", marginBottom: "1.5rem" }}>
-              Check back soon as top employers post new opportunities daily.
-            </p>
-            <Link to="/jobs" className="btn btn-primary">
-              Browse Job Catalog
-            </Link>
-          </div>
+          <EmptyState
+            icon={Briefcase}
+            title="No jobs published yet"
+            description="Check back soon as top employers post new opportunities daily."
+            action={{ label: "Browse Job Catalog", to: "/jobs" }}
+          />
         ) : (
           <div className="jobs-grid">
             {data.map((job: Job) => (

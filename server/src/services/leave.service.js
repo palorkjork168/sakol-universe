@@ -1,5 +1,8 @@
-const { LeaveType, LeaveRequest, EmploymentRecord, Company, User, sequelize } = require("../models");
+const { LeaveType, LeaveRequest, EmploymentRecord, Company, User } = require("../models");
+const sequelize = require("../config/database");
 const { Op } = require("sequelize");
+const notificationService = require("./notification.service");
+const NOTIFICATION_TYPES = require("../constants/notificationTypes");
 
 class LeaveService {
   // Leave Types
@@ -80,9 +83,7 @@ class LeaveService {
     });
 
     if (!employment) {
-      const error = new Error("Active employment record not found");
-      error.statusCode = 404;
-      throw error;
+      return [];
     }
 
     const leaveTypes = await LeaveType.findAll({
@@ -124,8 +125,13 @@ class LeaveService {
   }
 
   async createLeaveRequest(userId, data) {
+    const employmentWhere = { user_id: userId, status: "ACTIVE" };
+    if (data.company_id) {
+      employmentWhere.company_id = data.company_id;
+    }
+
     const employment = await EmploymentRecord.findOne({
-      where: { user_id: userId, status: "ACTIVE" },
+      where: employmentWhere,
     });
 
     if (!employment) {
@@ -133,6 +139,7 @@ class LeaveService {
       error.statusCode = 403;
       throw error;
     }
+
 
     const leaveType = await LeaveType.findOne({
       where: { id: data.leave_type_id, company_id: employment.company_id },
@@ -160,11 +167,37 @@ class LeaveService {
       throw error;
     }
 
-    return await LeaveRequest.create({
+    const leaveRequest = await LeaveRequest.create({
       ...data,
       user_id: userId,
       company_id: employment.company_id,
     });
+
+    try {
+      const user = await User.findByPk(userId, { attributes: ["first_name", "last_name"] });
+      const employeeName = user ? `${user.first_name || ""} ${user.last_name || ""}`.trim() : "An employee";
+      const reviewers = await notificationService.getCompanyRecipients(
+        employment.company_id,
+        "leave.review"
+      );
+
+      await notificationService.notifyUsers(reviewers, {
+        type: NOTIFICATION_TYPES.LEAVE_REQUESTED,
+        title: "New Leave Request",
+        message: `${employeeName} requested ${leaveType.name} from ${data.start_date} to ${data.end_date}.`,
+        link: "/employer/leave-requests",
+        metadata: {
+          leave_request_id: leaveRequest.id,
+          company_id: employment.company_id,
+          employee_id: userId,
+        },
+        actorId: userId,
+      });
+    } catch (err) {
+      console.error("Failed to send leave request notification:", err);
+    }
+
+    return leaveRequest;
   }
 
   async cancelLeaveRequest(requestId, userId) {
@@ -184,7 +217,33 @@ class LeaveService {
       throw error;
     }
 
-    return await request.update({ status: "CANCELLED" });
+    await request.update({ status: "CANCELLED" });
+
+    try {
+      const user = await User.findByPk(userId, { attributes: ["first_name", "last_name"] });
+      const employeeName = user ? `${user.first_name || ""} ${user.last_name || ""}`.trim() : "An employee";
+      const reviewers = await notificationService.getCompanyRecipients(
+        request.company_id,
+        "leave.review"
+      );
+
+      await notificationService.notifyUsers(reviewers, {
+        type: NOTIFICATION_TYPES.LEAVE_CANCELLED,
+        title: "Leave Request Cancelled",
+        message: `${employeeName} cancelled their leave request.`,
+        link: "/employer/leave-requests",
+        metadata: {
+          leave_request_id: request.id,
+          company_id: request.company_id,
+          employee_id: userId,
+        },
+        actorId: userId,
+      });
+    } catch (err) {
+      console.error("Failed to send leave cancellation notification:", err);
+    }
+
+    return request;
   }
 
   // Leave Requests - Employer
@@ -244,6 +303,41 @@ class LeaveService {
         },
         { transaction }
       );
+
+      const leaveType = await LeaveType.findByPk(request.leave_type_id, { transaction });
+      const typeName = leaveType?.name || "leave";
+
+      if (status === "APPROVED") {
+        await notificationService.notifyUser({
+          userId: request.user_id,
+          type: NOTIFICATION_TYPES.LEAVE_APPROVED,
+          title: "Leave Request Approved",
+          message: `Your ${typeName} request from ${request.start_date} to ${request.end_date} has been approved.`,
+          link: "/employee/leave",
+          metadata: {
+            leave_request_id: request.id,
+            company_id: companyId,
+            status,
+          },
+          transaction,
+          deduplicationKey: `leave_review_${request.id}_${status}`,
+        });
+      } else if (status === "REJECTED") {
+        await notificationService.notifyUser({
+          userId: request.user_id,
+          type: NOTIFICATION_TYPES.LEAVE_REJECTED,
+          title: "Leave Request Update",
+          message: `Your ${typeName} request from ${request.start_date} to ${request.end_date} was not approved.`,
+          link: "/employee/leave",
+          metadata: {
+            leave_request_id: request.id,
+            company_id: companyId,
+            status,
+          },
+          transaction,
+          deduplicationKey: `leave_review_${request.id}_${status}`,
+        });
+      }
 
       await transaction.commit();
       return request;

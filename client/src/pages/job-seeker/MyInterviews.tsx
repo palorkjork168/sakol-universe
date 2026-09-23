@@ -11,10 +11,11 @@ import {
   Phone,
   Building2,
   ExternalLink,
-  Loader2,
   AlertCircle,
   Search,
 } from "lucide-react";
+import BackButton from "../../components/common/BackButton";
+import { SkeletonCard } from "../../components/common/Skeleton";
 
 export default function MyInterviews() {
   const [filter, setFilter] = useState<string>("UPCOMING");
@@ -25,6 +26,7 @@ export default function MyInterviews() {
       const res = await api.get("/interviews/my");
       return res.data.data.interviews;
     },
+    staleTime: 60 * 1000,
   });
 
   const now = new Date();
@@ -117,6 +119,9 @@ export default function MyInterviews() {
 
   return (
     <div className="dashboard-container">
+      {/* Back Navigation */}
+      <BackButton label="Back to Dashboard" fallback="/job-seeker/dashboard" />
+
       {/* Header */}
       <div className="dashboard-header" style={{ marginBottom: "1.5rem" }}>
         <div>
@@ -148,11 +153,10 @@ export default function MyInterviews() {
       </div>
 
       {isLoading && (
-        <div style={{ textAlign: "center", padding: "4rem 1.5rem" }}>
-          <Loader2 className="animate-spin" size={24} style={{ color: "var(--primary)" }} />
-          <div style={{ marginTop: "0.5rem", color: "var(--text-muted)", fontSize: "0.875rem" }}>
-            Loading your interview schedule...
-          </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
         </div>
       )}
 

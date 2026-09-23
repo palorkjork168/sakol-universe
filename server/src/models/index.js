@@ -1,6 +1,9 @@
 const User = require("./User");
 const Role = require("./Role");
 const UserRole = require("./UserRole");
+const Permission = require("./Permission");
+const RolePermission = require("./RolePermission");
+const CompanyUserRole = require("./CompanyUserRole");
 const Company = require("./Company");
 const Job = require("./Job");
 const Application = require("./Application");
@@ -18,7 +21,9 @@ const Position = require("./Position");
 const EmploymentRecord = require("./EmploymentRecord");
 const LeaveType = require("./LeaveType");
 const LeaveRequest = require("./LeaveRequest");
+const Notification = require("./Notification");
 
+// User Role Many-to-Many
 User.belongsToMany(Role, {
   through: UserRole,
   foreignKey: "user_id",
@@ -28,6 +33,51 @@ Role.belongsToMany(User, {
   through: UserRole,
   foreignKey: "role_id",
 });
+
+// Role Permission Many-to-Many
+Role.belongsToMany(Permission, {
+  through: RolePermission,
+  foreignKey: "role_id",
+  as: "permissions",
+});
+
+Permission.belongsToMany(Role, {
+  through: RolePermission,
+  foreignKey: "permission_id",
+  as: "roles",
+});
+
+// Company User Role (Company-Scoped Roles: HR, MANAGER, RECRUITER)
+User.hasMany(CompanyUserRole, {
+  foreignKey: "user_id",
+  as: "companyRoles",
+});
+
+CompanyUserRole.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "user",
+});
+
+Company.hasMany(CompanyUserRole, {
+  foreignKey: "company_id",
+  as: "companyRoles",
+});
+
+CompanyUserRole.belongsTo(Company, {
+  foreignKey: "company_id",
+  as: "company",
+});
+
+Role.hasMany(CompanyUserRole, {
+  foreignKey: "role_id",
+  as: "companyAssignments",
+});
+
+CompanyUserRole.belongsTo(Role, {
+  foreignKey: "role_id",
+  as: "role",
+});
+
 
 User.hasMany(Company, {
   foreignKey: "owner_id",
@@ -300,10 +350,24 @@ User.hasMany(LeaveRequest, {
   as: "reviewedLeaves",
 });
 
+// Notification
+User.hasMany(Notification, {
+  foreignKey: "user_id",
+  as: "notifications",
+});
+
+Notification.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "user",
+});
+
 module.exports = {
   User,
   Role,
   UserRole,
+  Permission,
+  RolePermission,
+  CompanyUserRole,
   Company,
   Job,
   Application,
@@ -321,4 +385,5 @@ module.exports = {
   EmploymentRecord,
   LeaveType,
   LeaveRequest,
+  Notification,
 };

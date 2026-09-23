@@ -57,6 +57,44 @@ const login = async (req, res) => {
 const getMe = async (req, res) => {
   try {
     const user = req.user;
+    const authorizationService = require("../services/authorization.service");
+    const { CompanyUserRole, Company, Role } = require("../models");
+
+    const permissions = await authorizationService.getUserGlobalPermissions(user);
+
+    // Fetch company roles
+    const assignedRoles = await CompanyUserRole.findAll({
+      where: { user_id: user.id },
+      include: [
+        { model: Company, as: "company", attributes: ["id", "name"] },
+        { model: Role, as: "role", attributes: ["id", "name"] },
+      ],
+    });
+
+    const companyRoles = assignedRoles.map((ar) => ({
+      id: ar.id,
+      company_id: ar.company_id,
+      company_name: ar.company ? ar.company.name : null,
+      role: ar.role ? ar.role.name : null,
+    }));
+
+    // Also include owned companies as EMPLOYER / OWNER
+    const ownedCompanies = await Company.findAll({
+      where: { owner_id: user.id },
+      attributes: ["id", "name"],
+    });
+
+    ownedCompanies.forEach((comp) => {
+      if (!companyRoles.some((cr) => cr.company_id === comp.id && cr.role === "EMPLOYER")) {
+        companyRoles.push({
+          id: `owner-${comp.id}`,
+          company_id: comp.id,
+          company_name: comp.name,
+          role: "EMPLOYER",
+          is_owner: true,
+        });
+      }
+    });
 
     res.status(200).json({
       success: true,
@@ -70,7 +108,9 @@ const getMe = async (req, res) => {
           phone: user.phone,
           avatar_url: user.avatar_url,
           status: user.status,
-          roles: user.Roles ? user.Roles.map(r => r.name) : [],
+          roles: user.Roles ? user.Roles.map((r) => r.name) : [],
+          permissions,
+          companyRoles,
           department: user.employeeProfile?.department || null,
           created_at: user.created_at,
         },
@@ -79,10 +119,11 @@ const getMe = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: "Failed to retrieve current user",
+      message: "Failed to retrieve current user: " + error.message,
     });
   }
 };
+
 
 module.exports = {
   register,

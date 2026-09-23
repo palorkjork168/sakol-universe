@@ -22,6 +22,7 @@ import {
   FileText,
   Link2,
 } from "lucide-react";
+import BackButton from "../../components/common/BackButton";
 
 export default function JobDetails() {
   const { id } = useParams<{ id: string }>();
@@ -222,13 +223,18 @@ export default function JobDetails() {
 
   return (
     <div className="job-details-container">
-      {/* Breadcrumb */}
-      <div className="breadcrumb">
-        <Link to="/jobs" style={{ textDecoration: "none", color: "inherit", display: "flex", alignItems: "center", gap: "0.25rem" }}>
-          <ChevronLeft size={16} /> All Jobs
-        </Link>
-        <span>/</span>
-        <span style={{ color: "var(--text-main)", fontWeight: 500 }}>{jobData.title}</span>
+      {/* Back Navigation & Breadcrumb */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", marginBottom: "1rem" }}>
+        <BackButton label="Back to Jobs" fallback="/jobs" style={{ marginBottom: 0 }} />
+        <div className="breadcrumb" style={{ margin: 0 }}>
+          <Link to="/jobs" style={{ textDecoration: "none", color: "inherit" }}>
+            All Jobs
+          </Link>
+          <span>/</span>
+          <span style={{ color: "var(--text-main)", fontWeight: 500, maxWidth: "300px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={jobData.title}>
+            {jobData.title}
+          </span>
+        </div>
       </div>
 
       {/* Main Header Card */}

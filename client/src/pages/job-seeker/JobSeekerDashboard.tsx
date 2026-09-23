@@ -14,18 +14,19 @@ import type {
 } from "../../types/profile";
 import { calculateProfileCompletion } from "../../utils/profileCompletion";
 import JobCard from "../../components/public/JobCard";
+import StatusBadge from "../../components/common/StatusBadge";
 import {
   FileText,
   Bookmark,
   Sparkles,
   ArrowRight,
   CheckCircle2,
-  Loader2,
   PlusCircle,
   Calendar,
   Video,
   Clock,
 } from "lucide-react";
+import { Skeleton, SkeletonStatCard } from "../../components/common/Skeleton";
 
 export default function JobSeekerDashboard() {
   const { user } = useAuth();
@@ -37,6 +38,7 @@ export default function JobSeekerDashboard() {
       const res = await api.get<GetProfileResponse>("/profile/me");
       return res.data.data.profile;
     },
+    staleTime: 60 * 1000,
   });
 
   const applicationsQuery = useQuery<JobApplicationItem[]>({
@@ -45,6 +47,7 @@ export default function JobSeekerDashboard() {
       const res = await api.get<GetMyApplicationsResponse>("/applications/my");
       return res.data.data.applications;
     },
+    staleTime: 60 * 1000,
   });
 
   const savedJobsQuery = useQuery<SavedJobRecord[]>({
@@ -53,6 +56,7 @@ export default function JobSeekerDashboard() {
       const res = await api.get<GetSavedJobsResponse>("/jobs/saved");
       return res.data.data.savedJobs;
     },
+    staleTime: 60 * 1000,
   });
 
   const recommendedQuery = useQuery<RecommendedJobItem[]>({
@@ -61,6 +65,7 @@ export default function JobSeekerDashboard() {
       const res = await api.get<GetRecommendedJobsResponse>("/jobs/recommended");
       return res.data.data.recommendations;
     },
+    staleTime: 60 * 1000,
   });
 
   const interviewsQuery = useQuery<any[]>({
@@ -69,6 +74,7 @@ export default function JobSeekerDashboard() {
       const res = await api.get("/interviews/my");
       return res.data.data.interviews;
     },
+    staleTime: 60 * 1000,
   });
 
   const now = new Date();
@@ -84,54 +90,10 @@ export default function JobSeekerDashboard() {
   const completion = calculateProfileCompletion(profile);
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "PENDING":
-        return (
-          <span style={{ fontSize: "0.75rem", color: "#b45309", backgroundColor: "rgba(245, 158, 11, 0.12)", padding: "0.2rem 0.5rem", borderRadius: "9999px", fontWeight: 600 }}>
-            Pending
-          </span>
-        );
-      case "REVIEWING":
-        return (
-          <span style={{ fontSize: "0.75rem", color: "#1d4ed8", backgroundColor: "rgba(37, 99, 235, 0.12)", padding: "0.2rem 0.5rem", borderRadius: "9999px", fontWeight: 600 }}>
-            In Review
-          </span>
-        );
-      case "INTERVIEW":
-        return (
-          <span style={{ fontSize: "0.75rem", color: "#6d28d9", backgroundColor: "rgba(124, 58, 237, 0.12)", padding: "0.2rem 0.5rem", borderRadius: "9999px", fontWeight: 600 }}>
-            Interview
-          </span>
-        );
-      case "ACCEPTED":
-        return (
-          <span style={{ fontSize: "0.75rem", color: "#059669", backgroundColor: "rgba(16, 185, 129, 0.12)", padding: "0.2rem 0.5rem", borderRadius: "9999px", fontWeight: 600 }}>
-            Accepted
-          </span>
-        );
-      case "REJECTED":
-        return (
-          <span style={{ fontSize: "0.75rem", color: "#dc2626", backgroundColor: "rgba(239, 68, 68, 0.12)", padding: "0.2rem 0.5rem", borderRadius: "9999px", fontWeight: 600 }}>
-            Declined
-          </span>
-        );
-      default:
-        return <span className="badge badge-gray">{status}</span>;
-    }
+    return <StatusBadge status={status} />;
   };
 
   const isInitialLoading = profileQuery.isLoading && applicationsQuery.isLoading;
-
-  if (isInitialLoading) {
-    return (
-      <div className="dashboard-container" style={{ textAlign: "center", padding: "4rem 1.5rem" }}>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", color: "var(--text-muted)" }}>
-          <Loader2 className="animate-spin" size={20} />
-          <span>Loading your job seeker dashboard...</span>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="dashboard-container">
@@ -146,21 +108,29 @@ export default function JobSeekerDashboard() {
       </div>
 
       {/* Summary Cards */}
-      <div className="summary-cards">
-        {/* Applications */}
-        <Link to="/job-seeker/applications" className="card" style={{ textDecoration: "none", transition: "transform 0.2s, box-shadow 0.2s" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span className="card-title">My Applications</span>
-            <div style={{ width: "36px", height: "36px", borderRadius: "50%", backgroundColor: "rgba(37, 99, 235, 0.1)", color: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <FileText size={18} />
+      {isInitialLoading ? (
+        <div className="summary-cards">
+          <SkeletonStatCard />
+          <SkeletonStatCard />
+          <SkeletonStatCard />
+          <SkeletonStatCard />
+        </div>
+      ) : (
+        <div className="summary-cards">
+          {/* Applications */}
+          <Link to="/job-seeker/applications" className="card" style={{ textDecoration: "none", transition: "transform 0.2s, box-shadow 0.2s" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span className="card-title">My Applications</span>
+              <div style={{ width: "36px", height: "36px", borderRadius: "50%", backgroundColor: "rgba(37, 99, 235, 0.1)", color: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <FileText size={18} />
+              </div>
             </div>
-          </div>
-          <p className="card-value">{applications.length}</p>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontSize: "0.8125rem", color: "var(--primary)", marginTop: "0.5rem", fontWeight: 500 }}>
-            <span>View all applications</span>
-            <ArrowRight size={13} />
-          </div>
-        </Link>
+            <p className="card-value">{applications.length}</p>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontSize: "0.8125rem", color: "var(--primary)", marginTop: "0.5rem", fontWeight: 500 }}>
+              <span>View all applications</span>
+              <ArrowRight size={13} />
+            </div>
+          </Link>
 
         {/* Saved Jobs */}
         <Link to="/job-seeker/saved" className="card" style={{ textDecoration: "none", transition: "transform 0.2s, box-shadow 0.2s" }}>
@@ -213,6 +183,7 @@ export default function JobSeekerDashboard() {
           </div>
         </Link>
       </div>
+      )}
 
       {/* Upcoming Interviews Alert/Banner */}
       {upcomingInterviews.length > 0 && (
@@ -394,7 +365,13 @@ export default function JobSeekerDashboard() {
             </Link>
           </div>
 
-          {applications.length === 0 ? (
+          {applicationsQuery.isLoading ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              <Skeleton height="52px" borderRadius="var(--radius-md)" />
+              <Skeleton height="52px" borderRadius="var(--radius-md)" />
+              <Skeleton height="52px" borderRadius="var(--radius-md)" />
+            </div>
+          ) : applications.length === 0 ? (
             <div style={{ textAlign: "center", padding: "2rem 1rem", backgroundColor: "var(--bg-color)", borderRadius: "var(--radius-md)" }}>
               <FileText size={24} style={{ color: "var(--text-light)", marginBottom: "0.5rem" }} />
               <p style={{ margin: 0, fontSize: "0.8125rem", color: "var(--text-muted)" }}>

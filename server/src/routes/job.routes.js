@@ -34,7 +34,7 @@ router.get("/", jobController.getJobs);
 router.get(
   "/my",
   authenticate,
-  authorize("EMPLOYER", "ADMIN"),
+  authorize("EMPLOYER", "ADMIN", "RECRUITER"),
   jobController.getMyJobs
 );
 
@@ -49,7 +49,7 @@ router.get("/:id", jobController.getJobById);
 router.post(
   "/",
   authenticate,
-  authorize("EMPLOYER", "ADMIN"),
+  authorize("EMPLOYER", "ADMIN", "RECRUITER"),
   validate(createJobSchema),
   jobController.createJob
 );
@@ -57,7 +57,7 @@ router.post(
 router.put(
   "/:id",
   authenticate,
-  authorize("EMPLOYER", "ADMIN"),
+  authorize("EMPLOYER", "ADMIN", "RECRUITER"),
   validate(updateJobSchema),
   jobController.updateJob
 );
@@ -65,8 +65,9 @@ router.put(
 router.delete(
   "/:id",
   authenticate,
-  authorize("EMPLOYER", "ADMIN"),
+  authorize("EMPLOYER", "ADMIN", "RECRUITER"),
   jobController.deleteJob
 );
+
 
 module.exports = router;

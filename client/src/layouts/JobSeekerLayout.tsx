@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   Calendar,
 } from "lucide-react";
+import NotificationBell from "../components/notifications/NotificationBell";
 
 export default function JobSeekerLayout() {
   const { user, logout } = useAuth();
@@ -76,6 +77,7 @@ export default function JobSeekerLayout() {
           {/* User Section */}
           <div className="nav-actions">
             <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+              <NotificationBell />
               <div
                 style={{
                   width: "34px",

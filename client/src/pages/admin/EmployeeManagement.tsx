@@ -9,6 +9,7 @@ import EditRoleModal from "./components/EditRoleModal";
 import EmployeeDetailsModal from "./components/EmployeeDetailsModal";
 import { LogOut, Plus, Search, Users, Building, UserCheck, Clock, AlertCircle, ChevronRight } from "lucide-react";
 import type { Employee } from "../../types/employee";
+import BackButton from "../../components/common/BackButton";
 
 export default function EmployeeManagement() {
   const { logout, user } = useAuth();
@@ -70,8 +71,11 @@ export default function EmployeeManagement() {
 
   return (
     <div className="dashboard-container">
-      <div className="breadcrumb">
-        Dashboard <ChevronRight size={14} /> <span style={{ color: "var(--text-main)", fontWeight: 500 }}>Employee Management</span>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", marginBottom: "0.5rem" }}>
+        <BackButton label="Back to Dashboard" fallback="/admin/dashboard" style={{ marginBottom: 0 }} />
+        <div className="breadcrumb" style={{ margin: 0 }}>
+          Dashboard <ChevronRight size={14} /> <span style={{ color: "var(--text-main)", fontWeight: 500 }}>Employee Management</span>
+        </div>
       </div>
       
       <header className="dashboard-header">

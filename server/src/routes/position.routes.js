@@ -14,22 +14,23 @@ router.get("/department/:departmentId", positionController.getDepartmentPosition
 
 router.post(
   "/",
-  authorize("EMPLOYER", "ADMIN"),
+  authorize("EMPLOYER", "ADMIN", "HR"),
   validate(positionSchema),
   positionController.createPosition
 );
 
 router.put(
   "/:id",
-  authorize("EMPLOYER", "ADMIN"),
+  authorize("EMPLOYER", "ADMIN", "HR"),
   validate(positionSchema),
   positionController.updatePosition
 );
 
 router.delete(
   "/:id",
-  authorize("EMPLOYER", "ADMIN"),
+  authorize("EMPLOYER", "ADMIN", "HR"),
   positionController.deletePosition
 );
+
 
 module.exports = router;

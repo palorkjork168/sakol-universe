@@ -189,7 +189,7 @@ async function runTests() {
     method: "POST",
     headers: { Authorization: `Bearer ${tokenA}` },
     body: JSON.stringify({
-      name: `Alpha Corp ${timestamp}`,
+      name: "Alpha Corp",
       description: "Leading technology innovation enterprise in Phnom Penh.",
       website: "https://alphacorp.example.com",
       email: `contact@alphacorp${timestamp}.com`,
@@ -268,7 +268,7 @@ async function runTests() {
     headers: { Authorization: `Bearer ${tokenA}` },
     body: JSON.stringify({
       company_id: companyA.id,
-      title: `Senior Backend Engineer ${timestamp}`,
+      title: "Senior Backend Engineer",
       description: "We are seeking an experienced Node.js backend developer to join our growing tech team in Phnom Penh.",
       requirements: "4+ years Node.js, PostgreSQL, Docker, Redis",
       responsibilities: "Architect backend APIs, lead database design, mentor junior devs",

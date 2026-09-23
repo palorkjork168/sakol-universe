@@ -1,4 +1,5 @@
 const positionService = require("../services/position.service");
+const authorizationService = require("../services/authorization.service");
 const { Company } = require("../models");
 
 exports.getCompanyPositions = async (req, res, next) => {
@@ -34,8 +35,15 @@ exports.createPosition = async (req, res, next) => {
     const { companyId } = req.body;
     
     const company = await Company.findByPk(companyId);
-    if (!company || (company.owner_id !== req.user.id && !req.user.roles.includes("ADMIN"))) {
-      const error = new Error("Not authorized");
+    if (!company) {
+      const error = new Error("Company not found");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const hasPerm = await authorizationService.hasCompanyPermission(req.user, companyId, "positions.manage");
+    if (!hasPerm) {
+      const error = new Error("Not authorized to manage this company's positions");
       error.statusCode = 403;
       throw error;
     }
@@ -58,8 +66,15 @@ exports.updatePosition = async (req, res, next) => {
     const { companyId } = req.body;
 
     const company = await Company.findByPk(companyId);
-    if (!company || (company.owner_id !== req.user.id && !req.user.roles.includes("ADMIN"))) {
-      const error = new Error("Not authorized");
+    if (!company) {
+      const error = new Error("Company not found");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const hasPerm = await authorizationService.hasCompanyPermission(req.user, companyId, "positions.manage");
+    if (!hasPerm) {
+      const error = new Error("Not authorized to manage this company's positions");
       error.statusCode = 403;
       throw error;
     }
@@ -82,8 +97,15 @@ exports.deletePosition = async (req, res, next) => {
     const { companyId } = req.body; 
 
     const company = await Company.findByPk(companyId);
-    if (!company || (company.owner_id !== req.user.id && !req.user.roles.includes("ADMIN"))) {
-      const error = new Error("Not authorized");
+    if (!company) {
+      const error = new Error("Company not found");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const hasPerm = await authorizationService.hasCompanyPermission(req.user, companyId, "positions.manage");
+    if (!hasPerm) {
+      const error = new Error("Not authorized to manage this company's positions");
       error.statusCode = 403;
       throw error;
     }

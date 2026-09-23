@@ -118,7 +118,7 @@ async function runHiringTests() {
       method: "POST",
       headers: { Authorization: `Bearer ${tokenEmpA}` },
       body: JSON.stringify({
-        name: `Wayne Tech ${timestamp}`,
+        name: "Wayne Tech",
         description: "Innovative tech conglomerate",
         city: "Phnom Penh",
         country: "Cambodia",
@@ -131,7 +131,7 @@ async function runHiringTests() {
       headers: { Authorization: `Bearer ${tokenEmpA}` },
       body: JSON.stringify({
         company_id: companyA.id,
-        title: `Systems Architect ${timestamp}`,
+        title: "Systems Architect",
         description: "Backend microservices and systems architecture.",
         employment_type: "FULL_TIME",
         location: "Gotham City",

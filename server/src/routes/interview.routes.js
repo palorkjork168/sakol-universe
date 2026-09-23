@@ -17,7 +17,7 @@ const router = express.Router();
 router.post(
   "/",
   authenticate,
-  authorize("EMPLOYER", "ADMIN"),
+  authorize("EMPLOYER", "ADMIN", "RECRUITER"),
   validate(createInterviewSchema),
   interviewController.createInterview
 );
@@ -26,7 +26,7 @@ router.post(
 router.get(
   "/employer/my",
   authenticate,
-  authorize("EMPLOYER", "ADMIN"),
+  authorize("EMPLOYER", "ADMIN", "RECRUITER"),
   interviewController.getEmployerInterviews
 );
 
@@ -56,7 +56,7 @@ router.get(
 router.put(
   "/:id",
   authenticate,
-  authorize("EMPLOYER", "ADMIN"),
+  authorize("EMPLOYER", "ADMIN", "RECRUITER"),
   validate(updateInterviewSchema),
   interviewController.updateInterview
 );
@@ -65,7 +65,7 @@ router.put(
 router.patch(
   "/:id/cancel",
   authenticate,
-  authorize("EMPLOYER", "ADMIN"),
+  authorize("EMPLOYER", "ADMIN", "RECRUITER"),
   interviewController.cancelInterview
 );
 
@@ -73,9 +73,10 @@ router.patch(
 router.patch(
   "/:id/complete",
   authenticate,
-  authorize("EMPLOYER", "ADMIN"),
+  authorize("EMPLOYER", "ADMIN", "RECRUITER"),
   validate(completeInterviewSchema),
   interviewController.completeInterview
 );
+
 
 module.exports = router;

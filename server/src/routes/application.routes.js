@@ -46,7 +46,7 @@ router.get(
 router.get(
   "/job/:jobId",
   authenticate,
-  authorize("EMPLOYER", "ADMIN"),
+  authorize("EMPLOYER", "ADMIN", "RECRUITER"),
   applicationController.getJobApplications
 );
 
@@ -54,7 +54,7 @@ router.get(
 router.patch(
   "/:id/status",
   authenticate,
-  authorize("EMPLOYER", "ADMIN"),
+  authorize("EMPLOYER", "ADMIN", "RECRUITER"),
   validate(updateApplicationStatusSchema),
   applicationController.updateApplicationStatus
 );
@@ -62,7 +62,7 @@ router.patch(
 router.get(
   "/:id/applicant",
   authenticate,
-  authorize("EMPLOYER", "ADMIN"),
+  authorize("EMPLOYER", "ADMIN", "RECRUITER"),
   applicationController.getApplicantDetails
 );
 
@@ -70,9 +70,10 @@ router.get(
 router.post(
   "/:id/hire",
   authenticate,
-  authorize("EMPLOYER", "ADMIN"),
+  authorize("EMPLOYER", "ADMIN", "HR"),
   validate(hireApplicantSchema),
   applicationController.hireApplicant
 );
+
 
 module.exports = router;

@@ -18,6 +18,7 @@ import {
   AlertCircle,
   Briefcase,
 } from "lucide-react";
+import BackButton from "../../components/common/BackButton";
 
 export default function Applicants() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -137,6 +138,9 @@ export default function Applicants() {
 
   return (
     <div className="dashboard-container">
+      {/* Back Navigation */}
+      <BackButton label="Back to My Jobs" fallback="/employer/jobs" />
+
       {/* Header */}
       <div className="dashboard-header" style={{ marginBottom: "1.5rem" }}>
         <div>

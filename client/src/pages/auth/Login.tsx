@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import api from "../../services/api";
-import { Briefcase, Loader2, Lock, Mail, CheckCircle2 } from "lucide-react";
+import { Briefcase, Loader2, Lock, Mail, CheckCircle2, AlertCircle, Eye, EyeOff } from "lucide-react";
 
 export default function Login() {
   const [searchParams] = useSearchParams();
@@ -14,6 +14,7 @@ export default function Login() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -70,116 +71,212 @@ export default function Login() {
   return (
     <div
       style={{
-        maxWidth: "420px",
-        margin: "70px auto",
-        padding: "2.5rem",
-        backgroundColor: "#ffffff",
-        border: "1px solid var(--border-color)",
-        borderRadius: "var(--radius-lg)",
-        boxShadow: "var(--shadow-sm)",
+        minHeight: "calc(100vh - 80px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "2rem 1rem",
+        backgroundColor: "var(--color-bg)",
       }}
     >
-      <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-        <Link to="/" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "0.5rem", marginBottom: "1rem" }}>
-          <div className="brand-icon" style={{ width: "36px", height: "36px" }}>
-            <Briefcase size={18} />
+      <div
+        className="card fade-in"
+        style={{
+          maxWidth: "440px",
+          width: "100%",
+          padding: "2.5rem 2rem",
+          boxShadow: "var(--shadow-md)",
+          borderRadius: "var(--radius-xl)",
+        }}
+      >
+        {/* Header / Brand */}
+        <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+          <Link
+            to="/"
+            style={{
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.625rem",
+              marginBottom: "1.25rem",
+            }}
+          >
+            <div
+              style={{
+                width: "40px",
+                height: "40px",
+                borderRadius: "var(--radius-md)",
+                backgroundColor: "var(--color-primary)",
+                color: "#ffffff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "0 2px 8px rgba(37, 99, 235, 0.25)",
+              }}
+            >
+              <Briefcase size={20} />
+            </div>
+            <span style={{ fontSize: "1.375rem", fontWeight: 800, color: "var(--color-text)", letterSpacing: "-0.02em" }}>
+              Sakol Universe
+            </span>
+          </Link>
+          <h1 style={{ fontSize: "1.5rem", fontWeight: 800, margin: "0 0 0.375rem", color: "var(--color-text)" }}>
+            Welcome back
+          </h1>
+          <p style={{ color: "var(--color-text-secondary)", fontSize: "0.875rem", margin: 0 }}>
+            Sign in to access your jobs, applications, and portal.
+          </p>
+        </div>
+
+        {/* Success Alert */}
+        {isRegistered && (
+          <div
+            style={{
+              padding: "0.75rem 1rem",
+              marginBottom: "1.5rem",
+              backgroundColor: "var(--color-success-soft)",
+              color: "var(--color-success-text)",
+              borderRadius: "var(--radius-md)",
+              border: "1px solid var(--color-success-border)",
+              fontSize: "0.875rem",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+            }}
+          >
+            <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
+            <span>Account created successfully! Please sign in below.</span>
           </div>
-          <span style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--text-main)" }}>Sakol Universe</span>
-        </Link>
-        <h2 style={{ fontSize: "1.5rem", margin: "0 0 0.5rem 0" }}>Welcome Back</h2>
-        <p style={{ color: "var(--text-muted)", fontSize: "0.875rem", margin: 0 }}>
-          Sign in to your account to continue
-        </p>
-      </div>
+        )}
 
-      {isRegistered && (
-        <div
-          style={{
-            padding: "0.75rem 1rem",
-            marginBottom: "1.5rem",
-            backgroundColor: "var(--success-bg)",
-            color: "var(--success-text)",
-            borderRadius: "var(--radius-md)",
-            fontSize: "0.875rem",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-          }}
-        >
-          <CheckCircle2 size={16} /> Account created successfully! Please sign in below.
-        </div>
-      )}
-
-      {error && (
-        <div
-          style={{
-            padding: "0.75rem 1rem",
-            marginBottom: "1.5rem",
-            backgroundColor: "var(--danger-bg)",
-            color: "var(--danger)",
-            borderRadius: "var(--radius-md)",
-            fontSize: "0.875rem",
-          }}
-        >
-          {error}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-        <div className="form-group" style={{ margin: 0 }}>
-          <label className="form-label">Email Address</label>
-          <div className="search-field-wrapper" style={{ backgroundColor: "#ffffff", border: "1px solid var(--border-color)" }}>
-            <Mail size={16} style={{ color: "var(--text-light)" }} />
-            <input
-              type="email"
-              className="search-field-input"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
+        {/* Error Alert */}
+        {error && (
+          <div
+            style={{
+              padding: "0.75rem 1rem",
+              marginBottom: "1.5rem",
+              backgroundColor: "var(--color-danger-soft)",
+              color: "var(--color-danger-text)",
+              borderRadius: "var(--radius-md)",
+              border: "1px solid var(--color-danger-border)",
+              fontSize: "0.875rem",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+            }}
+          >
+            <AlertCircle size={16} style={{ flexShrink: 0 }} />
+            <span>{error}</span>
           </div>
-        </div>
+        )}
 
-        <div className="form-group" style={{ margin: 0 }}>
-          <label className="form-label">Password</label>
-          <div className="search-field-wrapper" style={{ backgroundColor: "#ffffff", border: "1px solid var(--border-color)" }}>
-            <Lock size={16} style={{ color: "var(--text-light)" }} />
-            <input
-              type="password"
-              className="search-field-input"
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+        {/* Form */}
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label" htmlFor="login_email">
+              Email Address
+            </label>
+            <div style={{ position: "relative" }}>
+              <Mail
+                size={16}
+                style={{
+                  position: "absolute",
+                  left: "0.875rem",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  color: "var(--color-text-muted)",
+                }}
+              />
+              <input
+                id="login_email"
+                type="email"
+                className="form-input"
+                style={{ paddingLeft: "2.5rem" }}
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+              />
+            </div>
           </div>
+
+          <div className="form-group" style={{ margin: 0 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-1)" }}>
+              <label className="form-label" htmlFor="login_password" style={{ margin: 0 }}>
+                Password
+              </label>
+            </div>
+            <div style={{ position: "relative" }}>
+              <Lock
+                size={16}
+                style={{
+                  position: "absolute",
+                  left: "0.875rem",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  color: "var(--color-text-muted)",
+                }}
+              />
+              <input
+                id="login_password"
+                type={showPassword ? "text" : "password"}
+                className="form-input"
+                style={{ paddingLeft: "2.5rem", paddingRight: "2.5rem" }}
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: "absolute",
+                  right: "0.75rem",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "var(--color-text-muted)",
+                  padding: "2px",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="btn btn-primary btn-lg"
+            style={{ width: "100%", marginTop: "0.5rem" }}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 size={18} className="animate-spin" /> Signing in...
+              </>
+            ) : (
+              "Sign In"
+            )}
+          </button>
+        </form>
+
+        <div style={{ textAlign: "center", marginTop: "1.75rem", fontSize: "0.875rem", color: "var(--color-text-secondary)" }}>
+          Don't have an account?{" "}
+          <Link
+            to={redirect ? `/register?redirect=${encodeURIComponent(redirect)}` : "/register"}
+            style={{ color: "var(--color-primary)", fontWeight: 600 }}
+          >
+            Create an account
+          </Link>
         </div>
-
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="btn btn-primary"
-          style={{ width: "100%", padding: "0.75rem", fontSize: "1rem", marginTop: "0.5rem" }}
-        >
-          {isLoading ? (
-            <>
-              <Loader2 size={18} className="spinner" /> Signing in...
-            </>
-          ) : (
-            "Sign In"
-          )}
-        </button>
-      </form>
-
-      <div style={{ textAlign: "center", marginTop: "1.75rem", fontSize: "0.875rem", color: "var(--text-muted)" }}>
-        Don't have an account?{" "}
-        <Link
-          to={redirect ? `/register?redirect=${encodeURIComponent(redirect)}` : "/register"}
-          style={{ color: "var(--primary)", fontWeight: 600, textDecoration: "none" }}
-        >
-          Register
-        </Link>
       </div>
     </div>
   );

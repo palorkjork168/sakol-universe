@@ -12,17 +12,17 @@ router.use(authenticate);
 // Publicly readable within the company (e.g. for employees or job seekers browsing roles? Usually employees)
 router.get("/company/:companyId", departmentController.getCompanyDepartments);
 
-// Only EMPLOYER and ADMIN can mutate
+// Only EMPLOYER, ADMIN, and HR can mutate
 router.post(
   "/",
-  authorize("EMPLOYER", "ADMIN"),
+  authorize("EMPLOYER", "ADMIN", "HR"),
   validate(departmentSchema),
   departmentController.createDepartment
 );
 
 router.put(
   "/:id",
-  authorize("EMPLOYER", "ADMIN"),
+  authorize("EMPLOYER", "ADMIN", "HR"),
   validate(departmentSchema),
   departmentController.updateDepartment
 );
@@ -30,8 +30,9 @@ router.put(
 // Delete usually passes companyId in body or query to verify ownership
 router.delete(
   "/:id",
-  authorize("EMPLOYER", "ADMIN"),
+  authorize("EMPLOYER", "ADMIN", "HR"),
   departmentController.deleteDepartment
 );
+
 
 module.exports = router;

@@ -1,5 +1,6 @@
 const { Op } = require("sequelize");
-const { Job, Company, Application } = require("../models");
+const { Job, Company, Application, CompanyUserRole } = require("../models");
+const authorizationService = require("./authorization.service");
 
 const createJob = async (user, jobData) => {
   const company = await Company.findByPk(
@@ -12,20 +13,16 @@ const createJob = async (user, jobData) => {
     throw error;
   }
 
-  const userRoles = user.Roles.map(
-    (role) => role.name
+  const hasPerm = await authorizationService.hasCompanyPermission(
+    user,
+    company.id,
+    "jobs.create"
   );
 
-  const isAdmin = userRoles.includes("ADMIN");
-
-  const isOwner =
-    company.owner_id === user.id;
-
-  if (!isAdmin && !isOwner) {
+  if (!hasPerm) {
     const error = new Error(
       "You do not have permission to create jobs for this company"
     );
-
     error.statusCode = 403;
     throw error;
   }
@@ -34,6 +31,7 @@ const createJob = async (user, jobData) => {
 
   return job;
 };
+
 
 const getJobs = async (query) => {
   const {
@@ -205,20 +203,17 @@ const updateJob = async (jobId, user, jobData) => {
     throw error;
   }
 
-  const userRoles = user.Roles.map((role) => role.name);
+  const hasPerm = await authorizationService.hasCompanyPermission(
+    user,
+    job.Company.id,
+    "jobs.update"
+  );
 
-  const isAdmin = userRoles.includes("ADMIN");
-
-  const isOwner =
-    job.Company.owner_id === user.id;
-
-  if (!isAdmin && !isOwner) {
+  if (!hasPerm) {
     const error = new Error(
       "You do not have permission to manage this job"
     );
-
     error.statusCode = 403;
-
     throw error;
   }
 
@@ -243,20 +238,17 @@ const deleteJob = async (jobId, user) => {
     throw error;
   }
 
-  const userRoles = user.Roles.map((role) => role.name);
+  const hasPerm = await authorizationService.hasCompanyPermission(
+    user,
+    job.Company.id,
+    "jobs.close"
+  );
 
-  const isAdmin = userRoles.includes("ADMIN");
-
-  const isOwner =
-    job.Company.owner_id === user.id;
-
-  if (!isAdmin && !isOwner) {
+  if (!hasPerm) {
     const error = new Error(
       "You do not have permission to manage this job"
     );
-
     error.statusCode = 403;
-
     throw error;
   }
 
@@ -266,16 +258,36 @@ const deleteJob = async (jobId, user) => {
 };
 
 const getMyJobs = async (user) => {
-  const userRoles = (user?.Roles || []).map((role) => role.name);
-  const isAdmin = userRoles.includes("ADMIN");
+  const isAdmin = authorizationService.isAdmin(user);
 
-  const companyWhere = isAdmin ? {} : { owner_id: user.id };
+  let companyWhere;
+  if (isAdmin) {
+    companyWhere = undefined;
+  } else {
+    // Find companies owned by user or where user has an assigned company role
+    const assignedCompanyRoles = await CompanyUserRole.findAll({
+      where: { user_id: user.id },
+      attributes: ["company_id"],
+    });
+    const companyIds = assignedCompanyRoles.map((cr) => cr.company_id);
+
+    if (companyIds.length > 0) {
+      companyWhere = {
+        [Op.or]: [
+          { owner_id: user.id },
+          { id: companyIds },
+        ],
+      };
+    } else {
+      companyWhere = { owner_id: user.id };
+    }
+  }
 
   const jobs = await Job.findAll({
     include: [
       {
         model: Company,
-        where: Object.keys(companyWhere).length > 0 ? companyWhere : undefined,
+        where: companyWhere,
         attributes: [
           "id",
           "name",
@@ -304,4 +316,4 @@ module.exports = {
   updateJob,
   deleteJob,
   getMyJobs,
-};
+};

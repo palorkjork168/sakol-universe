@@ -9,26 +9,26 @@ const router = express.Router();
 
 router.use(authenticate);
 
-// --- LEAVE TYPES (Employer / Admin) ---
+// --- LEAVE TYPES (Employer / Admin / HR) ---
 router.get("/types/company/:companyId", leaveController.getCompanyLeaveTypes);
 
 router.post(
   "/types",
-  authorize("EMPLOYER", "ADMIN"),
+  authorize("EMPLOYER", "ADMIN", "HR"),
   validate(leaveTypeSchema),
   leaveController.createLeaveType
 );
 
 router.put(
   "/types/:id",
-  authorize("EMPLOYER", "ADMIN"),
+  authorize("EMPLOYER", "ADMIN", "HR"),
   validate(leaveTypeSchema),
   leaveController.updateLeaveType
 );
 
 router.delete(
   "/types/:id",
-  authorize("EMPLOYER", "ADMIN"),
+  authorize("EMPLOYER", "ADMIN", "HR"),
   leaveController.deleteLeaveType
 );
 
@@ -51,14 +51,15 @@ router.patch(
 );
 
 
-// --- LEAVE REVIEW (Employer) ---
-router.get("/company/:companyId/requests", authorize("EMPLOYER", "ADMIN"), leaveController.getCompanyLeaveRequests);
+// --- LEAVE REVIEW (Employer / HR / Manager) ---
+router.get("/company/:companyId/requests", authorize("EMPLOYER", "ADMIN", "HR", "MANAGER"), leaveController.getCompanyLeaveRequests);
 
 router.patch(
   "/requests/:id/:action",
-  authorize("EMPLOYER", "ADMIN"),
+  authorize("EMPLOYER", "ADMIN", "HR", "MANAGER"),
   leaveController.reviewLeaveRequest
 );
+
 
 
 module.exports = router;

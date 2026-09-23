@@ -1,11 +1,11 @@
 const departmentService = require("../services/department.service");
+const authorizationService = require("../services/authorization.service");
 const { Company } = require("../models");
 
 exports.getCompanyDepartments = async (req, res, next) => {
   try {
     const { companyId } = req.params;
 
-    // Optional: verify access. If EMPLOYER, must own it. If ADMIN, allowed. If EMPLOYEE, maybe allowed.
     const departments = await departmentService.getCompanyDepartments(
       companyId,
       req.user.id
@@ -24,7 +24,6 @@ exports.createDepartment = async (req, res, next) => {
   try {
     const { companyId } = req.body;
 
-    // Verify ownership
     const company = await Company.findByPk(companyId);
     if (!company) {
       const error = new Error("Company not found");
@@ -32,7 +31,8 @@ exports.createDepartment = async (req, res, next) => {
       throw error;
     }
 
-    if (company.owner_id !== req.user.id && !req.user.roles.includes("ADMIN")) {
+    const hasPerm = await authorizationService.hasCompanyPermission(req.user, companyId, "departments.manage");
+    if (!hasPerm) {
       const error = new Error("Not authorized to manage this company's departments");
       error.statusCode = 403;
       throw error;
@@ -56,8 +56,15 @@ exports.updateDepartment = async (req, res, next) => {
     const { companyId } = req.body;
 
     const company = await Company.findByPk(companyId);
-    if (!company || (company.owner_id !== req.user.id && !req.user.roles.includes("ADMIN"))) {
-      const error = new Error("Not authorized");
+    if (!company) {
+      const error = new Error("Company not found");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const hasPerm = await authorizationService.hasCompanyPermission(req.user, companyId, "departments.manage");
+    if (!hasPerm) {
+      const error = new Error("Not authorized to manage this company's departments");
       error.statusCode = 403;
       throw error;
     }
@@ -77,11 +84,18 @@ exports.updateDepartment = async (req, res, next) => {
 exports.deleteDepartment = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { companyId } = req.body; // Expecting companyId to be sent or determined by middleware
+    const { companyId } = req.body;
 
     const company = await Company.findByPk(companyId);
-    if (!company || (company.owner_id !== req.user.id && !req.user.roles.includes("ADMIN"))) {
-      const error = new Error("Not authorized");
+    if (!company) {
+      const error = new Error("Company not found");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const hasPerm = await authorizationService.hasCompanyPermission(req.user, companyId, "departments.manage");
+    if (!hasPerm) {
+      const error = new Error("Not authorized to manage this company's departments");
       error.statusCode = 403;
       throw error;
     }

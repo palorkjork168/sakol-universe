@@ -1,21 +1,34 @@
 const { Role } = require("../models");
+const { seedPermissions } = require("./seedPermissions");
 
 const defaultRoles = [
   {
     name: "ADMIN",
-    description: "System administrator",
+    description: "System administrator with full platform access",
   },
   {
     name: "JOB_SEEKER",
-    description: "User searching for jobs",
+    description: "User searching and applying for jobs",
   },
   {
     name: "EMPLOYER",
-    description: "Company representative",
+    description: "Company owner and representative",
   },
   {
     name: "EMPLOYEE",
     description: "Company employee",
+  },
+  {
+    name: "HR",
+    description: "Human resources specialist managing personnel and leave",
+  },
+  {
+    name: "MANAGER",
+    description: "Team manager reviewing subordinates and leave",
+  },
+  {
+    name: "RECRUITER",
+    description: "Recruiter managing jobs, candidates, and interviews",
   },
 ];
 
@@ -30,6 +43,8 @@ const seedRoles = async () => {
   }
 
   console.log("Default roles seeded successfully!");
+
+  await seedPermissions();
 };
 
-module.exports = seedRoles;
+module.exports = seedRoles;

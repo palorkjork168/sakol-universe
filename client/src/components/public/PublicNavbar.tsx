@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { Briefcase, Menu, X, LogIn, UserPlus, LogOut, LayoutDashboard } from "lucide-react";
+import NotificationBell from "../notifications/NotificationBell";
 
 export default function PublicNavbar() {
   const { user, isAdmin, isEmployee, isJobSeeker, isEmployer, logout } = useAuth();
@@ -54,6 +55,7 @@ export default function PublicNavbar() {
         <div className="nav-actions">
           {user ? (
             <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+              <NotificationBell />
               {isEmployer && (
                 <Link to="/employer/dashboard" className="btn btn-primary" style={{ fontSize: "0.8125rem" }}>
                   <Briefcase size={15} /> Employer Portal

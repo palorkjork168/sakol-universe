@@ -1,15 +1,26 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 import api from "../services/api";
 
-interface User {
+export interface CompanyRoleAssignment {
+  id: string;
+  company_id: string;
+  company_name?: string | null;
+  role: string;
+  is_owner?: boolean;
+}
+
+export interface User {
   id: string;
   first_name: string;
   last_name: string;
   email: string;
   roles: (string | { name: string })[];
+  permissions?: string[];
+  companyRoles?: CompanyRoleAssignment[];
   department?: string | null;
   avatar_url?: string | null;
   status?: string;
+  created_at?: string;
 }
 
 interface AuthContextType {
@@ -23,6 +34,9 @@ interface AuthContextType {
   isEmployee: boolean;
   isJobSeeker: boolean;
   isEmployer: boolean;
+  hasRole: (roleName: string) => boolean;
+  hasPermission: (permissionName: string) => boolean;
+  hasCompanyRole: (companyId: string, roleName: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -103,6 +117,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isJobSeeker = hasRole("JOB_SEEKER");
   const isEmployer = hasRole("EMPLOYER");
 
+  const hasPermission = (permissionName: string) => {
+    if (isAdmin) return true;
+    if (!user?.permissions) return false;
+    return user.permissions.includes(permissionName);
+  };
+
+  const hasCompanyRole = (companyId: string, roleName: string) => {
+    if (isAdmin) return true;
+    if (!user?.companyRoles) return false;
+    return user.companyRoles.some(
+      (cr) => cr.company_id === companyId && cr.role.toUpperCase() === roleName.toUpperCase()
+    );
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -116,6 +144,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isEmployee,
         isJobSeeker,
         isEmployer,
+        hasRole,
+        hasPermission,
+        hasCompanyRole,
       }}
     >
       {children}

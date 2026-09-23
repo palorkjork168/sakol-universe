@@ -12,6 +12,9 @@ const {
   Role,
 } = require("../models");
 const sequelize = require("../config/database");
+const authorizationService = require("./authorization.service");
+const notificationService = require("./notification.service");
+const NOTIFICATION_TYPES = require("../constants/notificationTypes");
 
 const applyForJob = async (
   jobId,
@@ -55,6 +58,29 @@ const applyForJob = async (
     cover_letter: applicationData.cover_letter || null,
     cv_url: applicationData.cv_url || null,
   });
+
+  // Notify company owner & recruiters
+  try {
+    const recipients = await notificationService.getCompanyRecipients(
+      job.company_id,
+      "applicants.view"
+    );
+    const candidateName = `${user.first_name || ""} ${user.last_name || ""}`.trim() || "A candidate";
+    await notificationService.notifyUsers(recipients, {
+      type: NOTIFICATION_TYPES.APPLICATION_RECEIVED,
+      title: "New Job Application",
+      message: `${candidateName} applied for ${job.title}.`,
+      link: `/employer/jobs/${job.id}/applicants`,
+      metadata: {
+        job_id: job.id,
+        application_id: application.id,
+        candidate_id: user.id,
+      },
+      actorId: user.id,
+    });
+  } catch (err) {
+    console.error("Failed to send application notification:", err);
+  }
 
   return application;
 };
@@ -108,23 +134,20 @@ const getJobApplications = async (
     throw error;
   }
 
-  const userRoles = user.Roles.map(
-    (role) => role.name
+  const hasPerm = await authorizationService.hasCompanyPermission(
+    user,
+    job.Company.id,
+    "applicants.view"
   );
 
-  const isAdmin = userRoles.includes("ADMIN");
-
-  const isOwner =
-    job.Company.owner_id === user.id;
-
-  if (!isAdmin && !isOwner) {
+  if (!hasPerm) {
     const error = new Error(
       "You do not have permission to view these applications"
     );
-
     error.statusCode = 403;
     throw error;
   }
+
 
 const applications = await Application.findAll({
   where: {
@@ -205,27 +228,63 @@ const updateApplicationStatus = async (
     throw error;
   }
 
-  const userRoles = user.Roles.map(
-    (role) => role.name
+  const hasPerm = await authorizationService.hasCompanyPermission(
+    user,
+    application.Job.Company.id,
+    "applicants.update_status"
   );
 
-  const isAdmin = userRoles.includes("ADMIN");
-
-  const isOwner =
-    application.Job.Company.owner_id === user.id;
-
-  if (!isAdmin && !isOwner) {
+  if (!hasPerm) {
     const error = new Error(
       "You do not have permission to update this application"
     );
-
     error.statusCode = 403;
     throw error;
   }
 
-  await application.update({
-    status,
-  });
+  const oldStatus = application.status;
+  if (oldStatus !== status) {
+    await application.update({
+      status,
+    });
+
+    // Notify candidate about status update
+    try {
+      const jobTitle = application.Job?.title || "your application";
+      let statusTitle = "Application Update";
+      let statusMsg = `Your application status for ${jobTitle} is now ${status}.`;
+
+      if (status === "REVIEWING") {
+        statusTitle = "Application Under Review";
+        statusMsg = `Your application for ${jobTitle} is currently under review.`;
+      } else if (status === "INTERVIEW") {
+        statusTitle = "Interview Stage";
+        statusMsg = `You have progressed to the interview stage for ${jobTitle}.`;
+      } else if (status === "ACCEPTED") {
+        statusTitle = "Application Accepted";
+        statusMsg = `Congratulations! Your application for ${jobTitle} has been accepted.`;
+      } else if (status === "REJECTED") {
+        statusTitle = "Application Update";
+        statusMsg = `Thank you for your interest. Your application for ${jobTitle} was not selected.`;
+      }
+
+      await notificationService.notifyUser({
+        userId: application.user_id,
+        type: NOTIFICATION_TYPES.APPLICATION_STATUS_CHANGED,
+        title: statusTitle,
+        message: statusMsg,
+        link: "/job-seeker/applications",
+        metadata: {
+          application_id: application.id,
+          job_id: application.Job?.id,
+          status,
+        },
+        deduplicationKey: `app_status_${application.id}_${status}`,
+      });
+    } catch (err) {
+      console.error("Failed to send status notification:", err);
+    }
+  }
 
   return application;
 };
@@ -283,11 +342,13 @@ const getApplicantDetails = async (applicationId, user) => {
     throw error;
   }
 
-  const userRoles = (user?.Roles || []).map((role) => role.name);
-  const isAdmin = userRoles.includes("ADMIN");
-  const isOwner = application.Job?.Company?.owner_id === user?.id;
+  const hasPerm = await authorizationService.hasCompanyPermission(
+    user,
+    application.Job?.Company?.id,
+    "applicants.view"
+  );
 
-  if (!isAdmin && !isOwner) {
+  if (!hasPerm) {
     const error = new Error(
       "You do not have permission to view this applicant's details"
     );
@@ -344,17 +405,20 @@ const hireApplicant = async (applicationId, user, hiringData = {}) => {
   }
 
   // Verify ownership / authorization
-  const userRoles = (user?.Roles || []).map((role) => role.name);
-  const isAdmin = userRoles.includes("ADMIN");
-  const isOwner = application.Job?.Company?.owner_id === user?.id;
+  const hasPerm = await authorizationService.hasCompanyPermission(
+    user,
+    application.Job?.Company?.id,
+    "employees.manage"
+  );
 
-  if (!isAdmin && !isOwner) {
+  if (!hasPerm) {
     const error = new Error(
       "You do not have permission to hire this applicant"
     );
     error.statusCode = 403;
     throw error;
   }
+
 
   // Precondition: Only ACCEPTED applications can be converted to employees
   if (application.status !== "ACCEPTED") {
@@ -437,6 +501,23 @@ const hireApplicant = async (applicationId, user, hiringData = {}) => {
         },
         { transaction: t }
       );
+    }
+
+    if (!isAlreadyHired) {
+      await notificationService.notifyUser({
+        userId: applicantUser.id,
+        type: NOTIFICATION_TYPES.CANDIDATE_HIRED,
+        title: "Employment Confirmed",
+        message: `You have been hired by ${application.Job?.Company?.name || "the company"} for ${application.Job?.title || "the position"}!`,
+        link: "/employee/dashboard",
+        metadata: {
+          application_id: application.id,
+          company_id: application.Job?.Company?.id,
+          job_id: application.Job?.id,
+        },
+        transaction: t,
+        deduplicationKey: `hired_${application.id}`,
+      });
     }
 
     return { profile, isAlreadyHired };

@@ -5,13 +5,13 @@ import api from "../../services/api";
 import type { Job, GetJobResponse, EmploymentType, ExperienceLevel } from "../../types/job";
 import JobSkillsManager from "../../components/employer/JobSkillsManager";
 import {
-  ArrowLeft,
   AlertCircle,
   CheckCircle2,
   Loader2,
   Users,
   ExternalLink,
 } from "lucide-react";
+import BackButton from "../../components/common/BackButton";
 
 export default function EditJob() {
   const { id } = useParams<{ id: string }>();
@@ -159,21 +159,7 @@ export default function EditJob() {
       {/* Back Link & Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem", marginBottom: "1.5rem" }}>
         <div>
-          <Link
-            to="/employer/jobs"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.35rem",
-              color: "var(--text-muted)",
-              fontSize: "0.8125rem",
-              textDecoration: "none",
-              marginBottom: "0.75rem",
-            }}
-          >
-            <ArrowLeft size={14} />
-            <span>Back to My Jobs</span>
-          </Link>
+          <BackButton label="Back to My Jobs" fallback="/employer/jobs" />
           <h1 className="dashboard-title">Edit Job Posting</h1>
           <p className="dashboard-subtitle">
             Hiring for <strong>{job.Company?.name}</strong> • Job ID: {job.id.substring(0, 8)}...
